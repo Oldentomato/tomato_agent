@@ -36,14 +36,12 @@ chat_prompt = ChatPromptTemplate.from_messages(
 )
 
 class LangchainChatBot:
-    def __init__(self):
-        chat = get_openai_model()
+    def __init__(self, g):
+        chat = get_openai_model(g)
         self.chain = LLMChain(llm=chat, prompt=chat_prompt)
 
-    def chat(self, g, query):
+    def chat(self,query):
         result = self.chain.run({"question": query})
-        print(result)
-        g.send(result)
 
 if __name__ == "__main__":
     test = LangchainChatBot()

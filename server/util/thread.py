@@ -1,6 +1,5 @@
 import queue
 
-
 class ThreadGenerator:
     def __init__(self):
         self.queue = queue.Queue()

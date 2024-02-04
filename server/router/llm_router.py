@@ -6,13 +6,14 @@ from src import LangchainChatBot
 import threading
 
 llm_route = APIRouter()
-llm = LangchainChatBot()
 
 
 def chat_streaming(query):
     g = ThreadGenerator()
-    threading.Thread(target=llm.chat, args=(g,query)).start()
+    llm = LangchainChatBot(g)
+    threading.Thread(target=llm.chat, args=(query,)).start()
     return g
+
 
 @llm_route.post("/chat")
 async def chat(query: str = Form(...)):
