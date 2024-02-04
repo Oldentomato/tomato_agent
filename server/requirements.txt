@@ -1,0 +1,15 @@
+openai==1.6.1
+fastapi==0.109.0
+langchain==0.0.353
+konlpy==0.6.0
+regex==2023.12.25
+rank-bm25==0.2.2
+bs4
+soylemma==0.2.0
+#에러가 난다면 pip install -U docarray
+langchain[docarray]
+tiktoken==0.5.1
+google-api-python-client>=2.100.0
+scikit-learn
+uvicorn==0.27.0.post1
+python-multipart==0.0.6
