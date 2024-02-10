@@ -36,57 +36,60 @@ export default function MainView() {
       };
 
     const handleOnKeyPress = (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !isLoading) {
+            e.preventDefault();
+            setIsLoading(true)
             handleSend(); // Enter 입력이 되면 클릭 이벤트 실행
         }
       };
 
     const handleSend = async(e) =>{
-        setIsLoading(true)
         setMessages((prevMessages)=>[
             ...prevMessages,
             {text: input, isBot: false}
         ])
 
         let response = null
+        let url = null
 
         if(req === "chat"){
-            const url = new URL("/llm/chat", FETCH_URL);
-            const formData  = new FormData();
-            // url.searchParams.append("query", input);
-            formData.append("query", input)
-            setInput("")
-            response = await fetch(url,{
-                method: 'POST',
-                body: formData
-            })
-
-            if (!response.body) throw new Error("No response body");
-            const reader = response.body.getReader();
-            let temp_str = ""
-    
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                const text = new TextDecoder("utf-8").decode(value);
-                temp_str += text
-                setAnswer((prevText) => prevText + text);
-            }
-            setAnswer("")
-            setMessages((prevMessages)=>[
-                ...prevMessages,
-                {text: temp_str, isBot: true}
-            ])
-            setIsLoading(false)
-
-            
+            url = new URL("/llm/chat", FETCH_URL);
+        }else if(req === "agent"){
+            url = new URL("/agent/chat", FETCH_URL);
         }
+        const formData  = new FormData();
+        // url.searchParams.append("query", input);
+        formData.append("query", input)
+        setInput("")
+        response = await fetch(url,{
+            method: 'POST',
+            body: formData
+        })
+
+        if (!response.body) throw new Error("No response body");
+        const reader = response.body.getReader();
+        let temp_str = ""
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const text = new TextDecoder("utf-8").decode(value);
+            temp_str += text
+            setAnswer((prevText) => prevText + text);
+        }
+        setAnswer("")
+        setMessages((prevMessages)=>[
+            ...prevMessages,
+            {text: temp_str, isBot: true}
+        ])
+        setIsLoading(false)
+        
     }
 
     useEffect(()=>{
         msgEnd.current.scrollIntoView();
 
-    },[messages])
+    },[messages, answer])
 
 
     return(
@@ -97,7 +100,21 @@ export default function MainView() {
                         <Item key={i}>
                             <div className={message.isBot?"chat bot":"chat"}>
                                 {message.isBot ? <img className="chatImg" src={gptImgLogo}/> : <p>You</p> }
-                                <p className="txt">{message.text}</p>
+                                <p className="txt" style={{whiteSpace:"pre-line", textAlign:'left'}} key={i}>
+                                    {message.text.includes("```") ? (
+                                        <div>
+                                        {message.text.split("```").map((part, index) =>
+                                            index % 2 === 0 ? (
+                                            <span key={index}>{part}</span>
+                                            ) : (
+                                            <code style={{backgroundColor:'rgba(0, 0, 0, 0.5)', margin:'10px', color:'rgb(120,120,120)'}} key={index}>{part}</code>
+                                            )
+                                        )}
+                                        </div>
+                                    ) : (
+                                        message.text
+                                    )}
+                                </p>
                             </div>
                         </Item>)}
                 </AnimatePresence>
@@ -108,7 +125,7 @@ export default function MainView() {
                 }
                 {answer !== "" &&
                     <div className="chat bot">
-                        <img className="chatImg" src={gptImgLogo} /> <p className="txt">{answer}</p>
+                        <img className="chatImg" src={gptImgLogo} /> <p style={{whiteSpace:"pre-line", textAlign:'left'}} className="txt">{answer}</p>
                     </div>
                 }
                 <div ref={msgEnd} />
@@ -117,7 +134,7 @@ export default function MainView() {
                 <Radio.Group optionType="button" buttonStyle="solid" options={req_option} onChange={onRequestChange} value={req} />
                 <br />
                 <div className="inp">
-                    <input type="text" placeholder="Send a message" onKeyDown={handleOnKeyPress} value={input} onChange={(e)=>{setInput(e.target.value)}}/><Button className="send" type="primary" onClick={handleSend} loading={isLoading} icon={<SendOutlined />}/>
+                    <input type="text" placeholder="Send a message" onKeyUp={handleOnKeyPress} value={input} onChange={(e)=>{setInput(e.target.value)}}/><Button className="send" type="primary" onClick={handleSend} loading={isLoading} icon={<SendOutlined />}/>
                 </div>
             </div>
         </div>

@@ -15,6 +15,9 @@ def chat_streaming(query):
     return g
 
 
+
 @llm_route.post("/chat")
 async def chat(query: str = Form(...)):
     return StreamingResponse(chat_streaming(query=query), media_type='text/event-stream')
+
+

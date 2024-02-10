@@ -16,6 +16,7 @@ from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.prompts import BaseChatPromptTemplate
 from langchain.schema import AgentAction, AgentFinish, HumanMessage
+from util import MyAgentCallback
 
 
 # 이곳을 구조화시켜서 정리를 해놓는 작업이 필요함
@@ -111,12 +112,12 @@ class CustomPromptTemplate(BaseChatPromptTemplate):
 
 class LangAgent:
 
-    def __init__(self):
+    def __init__(self,g):
         output_parser = CustomOutputParser()
 
+        self.callback = MyAgentCallback(g)
 
         llm = get_openai_model()
-
 
         prompt = CustomPromptTemplate(
             template=_template,
@@ -142,7 +143,7 @@ class LangAgent:
         self.memory = ConversationBufferWindowMemory(k=5)
         
 
-    def run(self,g,query):
+    def run(self,query):
         """
             1. 사용자 입력이나 모든 이전단계를 LLMAgent에 전달합니다.
             2. 에이전트가 AgentFinish를 반환하면 바로 사용자에게 결과를 반환합니다.
@@ -158,15 +159,11 @@ class LangAgent:
         agent_executor = AgentExecutor(
             agent=self.agent, tools=get_tools(), verbose=True,
             handle_parsing_errors=_handle_error,
-            memory=self.memory
+            # memory=self.memory
         )   
-        for chunk in agent_executor.stream({"input": query}):
-            # print(chunk)
-            # print("------")
-            g.send(chunk)
-            g.send("------")
 
-        # result = agent_executor.invoke({"input":query})
+
+        result = agent_executor.run(query, callbacks=[self.callback])
 
         # for step in agent_executor.iter({"input":query}):
         #     if output := step.get("intermediate_step"):

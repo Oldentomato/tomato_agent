@@ -5,15 +5,16 @@ from langchain.document_loaders import WebBaseLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains.summarize import load_summarize_chain
 import pickle
-from util import get_google_search, get_openai_model
+# from util import get_google_search, get_openai_model
 
 
 def search_api(query : str) -> str:
-    """useful for when you need to answer questions about current events""" 
-    search = get_google_search()
+    # search = get_google_search()
+    search = GoogleSearchAPIWrapper()
     result = search.run(query)
     return result
 
+# print(search_api("스트리머 괴물쥐"))
 
 def calc_num(a:int, b:int, c:str) -> int:
     temp = -1
@@ -32,7 +33,6 @@ def calc_num(a:int, b:int, c:str) -> int:
 
 
 def save_html(summary: str):
-    """Get url in query and extract to html data."""
     #구조: 1. url을 받으면 파싱해서 내용만 추출한 뒤, 요약을 시킴
     # 2. 요약된 내용을 임베딩하여 url과 저장 (embedd_summary, url)
     # 3. 탐색할 때는 요청쿼리와 임베딩 요약내용을 비교하여 찾고 url을 가져온다음 webbrowser로 열기
@@ -56,13 +56,16 @@ def summarize_html(content: str):
     return AI_response
 
 class SaveHTMLInput(BaseModel):
-    summary: str = Field(description="get summarize content")
+    summary: str = Field(description="Get url in query and extract to html data.")
 
 class SummarizeInput(BaseModel):
     content: str = Field(description="content for summarize.")
 
 class GetHTMLInput(BaseModel):
     url: str = Field(description="extract url in query.")
+
+class SearchInput(BaseModel):
+    query: str = Field(description="get question.")
 
 
 class CalculatorInput(BaseModel):
@@ -75,6 +78,14 @@ save_html_tool = StructuredTool.from_function(
     name="save content",
     description="Save Summarized html content",
     args_schema=SaveHTMLInput,
+    return_direct=True
+)
+
+search_query_tool = StructuredTool.from_function(
+    func=search_api,
+    name="search in internet",
+    description="useful for when you need to answer questions about current events",
+    args_schema=SearchInput,
     return_direct=True
 )
 
@@ -103,7 +114,7 @@ get_html_tool = StructuredTool.from_function(
     return_direct=True #나중에 검색할 것
 )
 
-__tools = [calc_num_tool, get_html_tool, summarize_html_tool, save_html_tool]
+__tools = [search_query_tool, calc_num_tool]
 
 def get_tools():
     return __tools

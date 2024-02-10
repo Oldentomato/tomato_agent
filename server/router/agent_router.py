@@ -6,14 +6,15 @@ import threading
 from fastapi.responses import StreamingResponse
 
 agent_route = APIRouter()
-agent = LangAgent()
+
 
 def agent_streaming(query):
     g = ThreadGenerator()
-    threading.Thread(target=agent.run, args=(g,query)).start()
+    agent = LangAgent(g)
+    threading.Thread(target=agent.run, args=(query,)).start()
     return g
 
-@agnet_route.post("/agent")
+@agent_route.post("/chat")
 async def agent(query: str = Form(...)):
-    return StreamingResponse(agent_streaming(query,), media_type='text/event-stream')
+    return StreamingResponse(agent_streaming(query), media_type='text/event-stream')
     

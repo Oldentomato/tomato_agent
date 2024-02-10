@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import logging
 
-# from router.agent_router import agent
+from router.agent_router import agent_route
 from router.llm_router import llm_route
 
 app = FastAPI()
@@ -22,7 +22,7 @@ app.add_middleware(
 
 logging.basicConfig(level=logging.INFO)
 
-# app.include_router(agent, prefix="/agent")
+app.include_router(agent_route, prefix="/agent")
 app.include_router(llm_route, prefix="/llm")
 
 @app.get('/')
