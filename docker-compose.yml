@@ -1,0 +1,32 @@
+version: "2"
+# volumes:
+#   store:
+#     external: true
+#     name: store
+
+services:
+  back:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: always
+    # volumes:
+    #   - store:/store
+    env_file: ./server/.env
+    container_name: fastapi_server
+    command: uvicorn --host 0.0.0.0 api.api:app
+    ports:
+      - 8000:8000
+  
+  front:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: always
+    container_name: react_client
+    depends_on:
+      back:
+        condition: service_healthy
+    command: npm run start
+    ports:
+      - 3000:3000

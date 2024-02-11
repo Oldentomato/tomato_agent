@@ -1,10 +1,10 @@
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import os 
 from langchain.chat_models import ChatOpenAI
 from langchain_community.utilities import GoogleSearchAPIWrapper
 from .callbacks import MyStreamingCallback
 
-load_dotenv(verbose=True)
+# load_dotenv(verbose=True)
 
 def get_google_search():
     # GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
