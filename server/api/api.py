@@ -5,6 +5,7 @@ import logging
 
 from router.agent_router import agent_route
 from router.llm_router import llm_route
+from router.mysql import mysql
 
 app = FastAPI()
 
@@ -24,6 +25,7 @@ logging.basicConfig(level=logging.INFO)
 
 app.include_router(agent_route, prefix="/agent")
 app.include_router(llm_route, prefix="/llm")
+app.include_router(mysql, prefix="/db")
 
 @app.get('/')
 def health_check():

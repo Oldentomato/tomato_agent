@@ -1,11 +1,11 @@
-import MainView from "./views/main"
 import "./css/chat_view.css"
+import AutoRouter from "./components/AutoRouter";
 
 function App() {
   return (
-    <div className="App">
-      <MainView />
-    </div>
+    <>
+      <AutoRouter />
+    </>
   );
 }
 

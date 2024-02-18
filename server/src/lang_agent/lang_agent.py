@@ -13,17 +13,15 @@ from util import get_openai_model
 from langchain_community.tools.convert_to_openai import format_tool_to_openai_function
 from langchain.agents.format_scratchpad import format_to_openai_function_messages
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from langchain.memory import ConversationBufferWindowMemory
+from langchain.memory import ConversationBufferMemory
 from langchain.prompts import BaseChatPromptTemplate
 from langchain.schema import AgentAction, AgentFinish, HumanMessage
 from util import MyAgentCallback
 
 
-# 이곳을 구조화시켜서 정리를 해놓는 작업이 필요함
 # 구조화까지 끝나면 우선 html저장기능을 먼저 만들고 그 다음에 코드조각 저장기능을 만들어 놓자
 # 만일 tool을 잘 찾지 못한다면 종이에 쓴 기법을 한번 활용해보자 (아직까지는 얘가 tool을 잘 고름)
 # 근데 인터넷 검색결과성능이 너무 처참함 이것도 추후에 수정해볼것
-
 
 # 에이전트가 무엇을 해야하는지 이 템플릿을 이용하여 지시합니다. 일반적으로 템플릿에는 다음이 포함되어야 합니다.
 
@@ -34,6 +32,9 @@ from util import MyAgentCallback
 _template = """Complete the objective as best you can. You have access to the following tools:
 
 {tools}
+
+and reference the previous conversation:
+{chat_history}
 
 Use the following format:
 
@@ -47,6 +48,8 @@ Thought: I now know the final answer
 Final Answer: the final answer to the original input question and translate to korean
 
 These were previous tasks you completed:
+
+Maybe just conversation don't follow format, just answer. and also can use previous conversation.
 
 Begin!
 
@@ -105,6 +108,7 @@ class CustomPromptTemplate(BaseChatPromptTemplate):
         )
         # Create a list of tool names for the tools provided
         kwargs["tool_names"] = ", ".join([tool.name for tool in self.tools])
+
         formatted = self.template.format(**kwargs)
         return [HumanMessage(content=formatted)]
 
@@ -124,7 +128,7 @@ class LangAgent:
             tools=get_tools(),
             # 이 변수는 동적으로 생성되므로 'agent_scratchpad', 'tools' 및 'tool_names' 변수가 생략됩니다.
             # 여기에는 'intermediate_steps' 변수가 포함됩니다. 이 변수는 필요하기 때문입니다
-            input_variables=["input", "intermediate_steps"],
+            input_variables=["input", "intermediate_steps", "chat_history"],
         )
 
         # LLM chain consisting of the LLM and a prompt
@@ -138,10 +142,10 @@ class LangAgent:
             allowed_tools=tool_names # LLMOutput을 AgentAction이나 AgentFinish 객체로 파싱하는 방법을 결정합니다.
         )
 
+        self.memory = ConversationBufferMemory(memory_key="chat_history")
 
-        # , memory_key="chat_history"
-        self.memory = ConversationBufferWindowMemory(k=5)
-        
+    def _save_conversation(self,history):
+        pass
 
     def run(self,query):
         """
@@ -150,8 +154,7 @@ class LangAgent:
             3. 에이전트가 AgentAction을 반환하면 이를 사용하여 도구를 호출하고 Observation을 가져옵니다.
             4. AgentAction과 Observation을 AgentFinish가 등장할 때까지 다시 에이전트에 전달하는 일을 반복합니다.
         """
-        chat_history = []
-        result = ""
+        
         
         def _handle_error(error) -> str:
             return str(error)[:50]
@@ -159,25 +162,12 @@ class LangAgent:
         agent_executor = AgentExecutor(
             agent=self.agent, tools=get_tools(), verbose=True,
             handle_parsing_errors=_handle_error,
-            # memory=self.memory
+            memory=self.memory
         )   
 
+        agent_executor.run({"input":query}, callbacks=[self.callback])
 
-        result = agent_executor.run(query, callbacks=[self.callback])
+        print(self.memory.chat_memory.messages)
+        self._save_conversation(self.memory.load_memory_variables({}))
 
-        # for step in agent_executor.iter({"input":query}):
-        #     if output := step.get("intermediate_step"):
-        #         action, value = output[0]
-        #         if action.tool == "GetPrime":
-        #             print(f"Checking whether {value} is prime ...")
-        #             assert is_prime(int(value))
-
-        #         _continue = input("Should the agent continue (Y/n)?:\n") or "Y"
-        #         if _continue.lower() != "y":
-        #             break
         
-
-        # self.chat_history.extend([(query, result["answer"])])
-        # print(f"history: {self.memory.load_memory_variables({})}")
-        
-        # return result

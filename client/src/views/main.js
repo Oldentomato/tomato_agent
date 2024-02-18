@@ -25,9 +25,8 @@ export default function MainView() {
         text: "say something!",
         isBot: true
     }])
+    const [is_loading, set_is_loading] = useState(false);
     const [req, setreq] = useState('chat');
-
-
 
     const FETCH_URL = "http://localhost:8000"
 
@@ -85,6 +84,25 @@ export default function MainView() {
         setIsLoading(false)
         
     }
+
+    useEffect(async()=>{
+        //페이지 입장 시 두번 체크함
+        //localstorage에 token이 있는가 & token으로 유저정보를 가져오기
+        let response = null
+        let url = null
+        const token = localStorage.getItem('token')
+        url = new URL("/db/getuser", FETCH_URL);
+        const formData  = new FormData();
+        formData.append("token", token)
+        response = await fetch(url,{
+            method: 'GET',
+            body: formData
+        })
+        if (!response.body) throw new Error("No response body");
+
+        const reader = response.body.getReader();
+        console.log(reader)
+    },[])
 
     useEffect(()=>{
         msgEnd.current.scrollIntoView();
