@@ -67,7 +67,7 @@ margin-top: 5%;
 margin-left: 20%;
 width: 100%;
 max-width: 85rem;
-height: calc(100vh - 25rem);
+height: calc(100vh - 30rem);
 }
 
 .chats::-webkit-scrollbar {
@@ -195,7 +195,7 @@ display: flex;
 flex-direction: column;
 align-items: center;
 justify-content: center;
-height: 15vh;
+height: 10vh;
 }
 
 .inp {

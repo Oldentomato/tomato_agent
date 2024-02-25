@@ -1,9 +1,13 @@
 import {useState, useEffect, useRef} from 'react'
-import {Radio, Button} from 'antd'
+import {Radio, Button, Layout} from 'antd'
 import Item from '../components/Item'
 import { AnimatePresence } from "framer-motion";
 import { SendOutlined } from '@ant-design/icons';
 import gptImgLogo from '../assets/bot.jpg'
+import {useNavigate} from "react-router-dom"
+import { LogoutOutlined } from '@ant-design/icons';
+
+const {Header} = Layout;
 
 const req_option = [
     {
@@ -17,6 +21,7 @@ const req_option = [
 ]
 
 export default function MainView() {
+    const navigate = useNavigate();
     const msgEnd = useRef();
     const [input, setInput] = useState("");
     const [answer, setAnswer] = useState("");
@@ -32,7 +37,7 @@ export default function MainView() {
 
     const onRequestChange = ({ target: { value } }) => {
         setreq(value);
-      };
+    };
 
     const handleOnKeyPress = (e) => {
         if (e.key === 'Enter' && !isLoading) {
@@ -40,7 +45,34 @@ export default function MainView() {
             setIsLoading(true)
             handleSend(); // Enter 입력이 되면 클릭 이벤트 실행
         }
-      };
+    };
+
+    const onLogout = async() =>{
+        let url = null
+        const token = localStorage.getItem('token')
+        url = new URL("/db/logout", FETCH_URL);
+        const formData  = new FormData();
+        formData.append("token", token);
+        fetch(url,{
+            method: 'POST',
+            body: formData
+        }).then(response=>{
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json(); // 응답 본문을 JSON으로 파싱
+        }).then(data=>{
+            if(!data.success){
+                window.alert("로그아웃에 실패했습니다.")
+            }else{
+                window.alert("로그아웃되었습니다.")
+                localStorage.setItem('token','')
+                navigate('/')
+            }
+        }).catch(error => {
+            console.error('There was a problem with your fetch operation:', error);
+        });
+    }
 
     const handleSend = async(e) =>{
         setMessages((prevMessages)=>[
@@ -85,23 +117,34 @@ export default function MainView() {
         
     }
 
-    useEffect(async()=>{
+    const logincheck = async() =>{
         //페이지 입장 시 두번 체크함
         //localstorage에 token이 있는가 & token으로 유저정보를 가져오기
-        let response = null
         let url = null
         const token = localStorage.getItem('token')
         url = new URL("/db/getuser", FETCH_URL);
         const formData  = new FormData();
-        formData.append("token", token)
-        response = await fetch(url,{
-            method: 'GET',
+        formData.append("token", token);
+        fetch(url,{
+            method: 'POST',
             body: formData
-        })
-        if (!response.body) throw new Error("No response body");
+        }).then(response=>{
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json(); // 응답 본문을 JSON으로 파싱
+        }).then(data=>{
+            if(!data.success){
+                window.alert("잘못된 접근입니다.")
+                navigate("/")
+            }
+        }).catch(error => {
+            console.error('There was a problem with your fetch operation:', error);
+        });
+    }
 
-        const reader = response.body.getReader();
-        console.log(reader)
+    useEffect(()=>{
+        logincheck()
     },[])
 
     useEffect(()=>{
@@ -112,6 +155,12 @@ export default function MainView() {
 
     return(
         <div>
+            <Header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ color: 'white', marginTop:'10px',fontFamily:"Archivo Black", fontSize: '2.5rem' }}>TOMATO AGENT</div>
+                <Button type="text" onClick={onLogout} icon={<LogoutOutlined />} style={{ color: 'white' }}>
+                    logout
+                </Button>
+            </Header>
             <div className="chats">
                 <AnimatePresence>
                     {messages.map((message, i)=>

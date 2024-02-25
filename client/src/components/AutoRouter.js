@@ -10,21 +10,21 @@ import LoginView from "../views/login"
 
 const RouterInfo = [
 { path: '/', element: <LoginView />, withAuthorization: false },
-{ path: '/chat/:id', element: <MainView />, withAuthorization: true },
+{ path: '/chat', element: <MainView />, withAuthorization: true },
 // { path: '/signup', element: <Signup />, withAuthorization: false },
 ];
-
-const isAuthenticated = localStorage.getItem('token');
 
 const Authorization = ({
   redirectTo,
   children,
 }) => {
-  if (isAuthenticated) {
-    return <>{children}</>;
-  } else {
-    return <Navigate to={redirectTo} />;
-  }
+    const isAuthenticated = localStorage.getItem('token');
+    if (isAuthenticated) {
+        return <>{children}</>;
+    } else {
+        console.log(isAuthenticated)
+        return <Navigate to={redirectTo} />;
+    }
 };
 
 const AutoRouter = () => {
@@ -39,7 +39,6 @@ const AutoRouter = () => {
                 element={
                     route.withAuthorization ? (
                     <Authorization
-                        isAuthenticated={isAuthenticated}
                         redirectTo='/'
                     >
                         {route.element}
