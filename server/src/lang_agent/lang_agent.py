@@ -15,8 +15,9 @@ from langchain.agents.format_scratchpad import format_to_openai_function_message
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import BaseChatPromptTemplate
-from langchain.schema import AgentAction, AgentFinish, HumanMessage
+from langchain.schema import AgentAction, AgentFinish, HumanMessage, message_to_dict, messages_from_dict
 from util import MyAgentCallback
+import json
 
 
 # 구조화까지 끝나면 우선 html저장기능을 먼저 만들고 그 다음에 코드조각 저장기능을 만들어 놓자
@@ -115,10 +116,8 @@ class CustomPromptTemplate(BaseChatPromptTemplate):
 # Set up the base template
 
 class LangAgent:
-
-    def __init__(self,g):
+    def __init__(self,g, chat_id):
         output_parser = CustomOutputParser()
-
         self.callback = MyAgentCallback(g)
 
         llm = get_openai_model()
@@ -142,32 +141,39 @@ class LangAgent:
             allowed_tools=tool_names # LLMOutput을 AgentAction이나 AgentFinish 객체로 파싱하는 방법을 결정합니다.
         )
 
-        self.memory = ConversationBufferMemory(memory_key="chat_history")
+        
+    def _save_chats(self, chat_history):
+        # extracted_messages = self.memory.chat_memory.messages
+        ingest_to_db = message_to_dict(chat_history)
+        
+        json.dumps(ingest_to_db)
 
-    def _save_conversation(self,history):
-        pass
 
-    def run(self,query):
+    def run(self,query, chatroom_url):
         """
             1. 사용자 입력이나 모든 이전단계를 LLMAgent에 전달합니다.
             2. 에이전트가 AgentFinish를 반환하면 바로 사용자에게 결과를 반환합니다.
             3. 에이전트가 AgentAction을 반환하면 이를 사용하여 도구를 호출하고 Observation을 가져옵니다.
             4. AgentAction과 Observation을 AgentFinish가 등장할 때까지 다시 에이전트에 전달하는 일을 반복합니다.
         """
-        
-        
+        #대화내역 가져오기
+        if chatroom_url != "":
+            retrieve_from_db = json.loads(chatroom_url)
+            retrieved_chat_history = ChatMessageHistory(messages=retrieved_messages)
+            memory = ConversationBufferMemory(chat_memory=retrieved_chat_history, memory_key="chat_history")
+        else:
+            memory = ConversationBufferMemory(memory_key="chat_history")
+
+
         def _handle_error(error) -> str:
             return str(error)[:50]
 
         agent_executor = AgentExecutor(
             agent=self.agent, tools=get_tools(), verbose=True,
             handle_parsing_errors=_handle_error,
-            memory=self.memory
+            memory=memory
         )   
 
         agent_executor.run({"input":query}, callbacks=[self.callback])
 
-        print(self.memory.chat_memory.messages)
-        self._save_conversation(self.memory.load_memory_variables({}))
-
-        
+        # self._save_chats(self.memory.load_memory_variables({}))

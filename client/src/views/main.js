@@ -1,5 +1,5 @@
 import {useState, useEffect, useRef} from 'react'
-import {Radio, Button, Layout} from 'antd'
+import {Radio, Button, Layout, Menu, List} from 'antd'
 import Item from '../components/Item'
 import { AnimatePresence } from "framer-motion";
 import { SendOutlined } from '@ant-design/icons';
@@ -8,6 +8,7 @@ import {useNavigate} from "react-router-dom"
 import { LogoutOutlined } from '@ant-design/icons';
 
 const {Header} = Layout;
+const {Sider} = Layout;
 
 const req_option = [
     {
@@ -21,6 +22,8 @@ const req_option = [
 ]
 
 export default function MainView() {
+    //debug
+    const [chatRooms, setChatRooms] = useState([]);
     const navigate = useNavigate();
     const msgEnd = useRef();
     const [input, setInput] = useState("");
@@ -32,6 +35,7 @@ export default function MainView() {
     }])
     const [is_loading, set_is_loading] = useState(false);
     const [req, setreq] = useState('chat');
+    const token = localStorage.getItem('token')
 
     const FETCH_URL = "http://localhost:8000"
 
@@ -117,16 +121,43 @@ export default function MainView() {
         
     }
 
+    const getchats = () =>{
+        let url = null
+        url = new URL("/db/getchats", FETCH_URL);
+        const formData  = new FormData();
+        formData.append("token", token);
+        fetch(url,{
+            method: 'POST',
+            mode: 'cors',
+            body: formData
+        }).then(response=>{
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json(); // 응답 본문을 JSON으로 파싱
+        }).then(data=>{
+            if(data.success){
+                const result_data = data.item.map(item=>{
+                    return {'id': item.chat_id, 'name': 'Room_'+item.chat_id}
+                })
+
+                setChatRooms(result_data)
+            }
+        }).catch(error => {
+            console.error('There was a problem with your fetch operation:', error);
+        });
+    }
+
     const logincheck = async() =>{
         //페이지 입장 시 두번 체크함
         //localstorage에 token이 있는가 & token으로 유저정보를 가져오기
         let url = null
-        const token = localStorage.getItem('token')
         url = new URL("/db/getuser", FETCH_URL);
         const formData  = new FormData();
         formData.append("token", token);
         fetch(url,{
             method: 'POST',
+            mode: 'cors',
             body: formData
         }).then(response=>{
             if (!response.ok) {
@@ -137,6 +168,9 @@ export default function MainView() {
             if(!data.success){
                 window.alert("잘못된 접근입니다.")
                 navigate("/")
+            }
+            else{
+                getchats()
             }
         }).catch(error => {
             console.error('There was a problem with your fetch operation:', error);
@@ -185,6 +219,22 @@ export default function MainView() {
                             </div>
                         </Item>)}
                 </AnimatePresence>
+                <Sider width={200} style={{ background: '#fff', borderLeft: '1px solid #f0f0f0' }}>
+                    <Menu
+                    mode="inline"
+                    defaultSelectedKeys={['0']}
+                    style={{ height: '100%', borderRight: 0 }}
+                    >
+                    <List
+                        dataSource={chatRooms}
+                        renderItem={item => (
+                        <List.Item key={item.id}>
+                            <List.Item.Meta title={item.name} />
+                        </List.Item>
+                        )}
+                    />
+                    </Menu>
+                </Sider>
                 {(answer === "" && isLoading) &&
                     <div className="chat bot">
                         <img className="chatImg" src={gptImgLogo} /> <p className="txt">. . .</p>

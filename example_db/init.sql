@@ -10,15 +10,14 @@ GRANT ALL PRIVILEGES ON tomato_db.* TO 'my_user'@'%';
 USE tomato_db;
 
 CREATE TABLE IF NOT EXISTS users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_name VARCHAR(255) NOT NULL,
+    user_name VARCHAR(255) NOT NULL PRIMARY KEY,
     user_password VARCHAR(255) NOT NULL,
     token VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS conversation_files (
-    file_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
-    file_path VARCHAR(255) NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
+CREATE TABLE IF NOT EXISTS chats (
+    chat_id VARCHAR(255) PRIMARY KEY,
+    user_name VARCHAR(255),
+    chat_path VARCHAR(255) NOT NULL,
+    FOREIGN KEY (user_name) REFERENCES users(user_name)
 );
