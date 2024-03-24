@@ -60,7 +60,7 @@ async def login(name:str=Form(...), password:str=Form(...), token:str=Form(...))
             db.refresh(item)
     return {"success":True, "item": item}
 
-# INSERT INTO users (id, name) VALUES (1105, '테스트');
+# INSERT INTO users (user_name, user_password, token) VALUES ('woosung', 'qwer1234', '');
 # mysql> update users set token = '' where user_name = 'woosung';
 
 @sqlroute.post("/getuser")

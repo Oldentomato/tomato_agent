@@ -7,13 +7,19 @@ services:
     restart: always
     container_name: chatdb
     ports:
-      - 3306:3306
+      - 3307:3306
     tty: true #-it 대화형 허용
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      TZ: Asia/Seoul
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db/:/docker-entrypoint-initdb.d
+    platform: linux/x86_64
   back:
     build:
       context: ./server
@@ -30,8 +36,6 @@ services:
     command: uvicorn --host 0.0.0.0 api.api:app
     ports:
       - 8000:8000
-    volumes:
-      - /path/to/data:/data
   
   front:
     build:
