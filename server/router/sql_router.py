@@ -2,11 +2,14 @@ from fastapi import APIRouter,HTTPException, Form
 from sqlalchemy import create_engine, Column, Integer, String, MetaData, Table, ForeignKey
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from pydantic import BaseModel
+from dotenv import load_dotenv
+import os
 
+load_dotenv(verbose=True)
 sqlroute = APIRouter()
 
 # MySQL 연결 정보
-DATABASE_URL = "mysql+mysqlconnector://my_user:qwer1234@localhost:3306/tomatodb"
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 # SQLAlchemy 엔진 생성
 engine = create_engine(DATABASE_URL)
@@ -58,6 +61,7 @@ async def login(name:str=Form(...), password:str=Form(...), token:str=Form(...))
     return {"success":True, "item": item}
 
 # INSERT INTO users (id, name) VALUES (1105, '테스트');
+# mysql> update users set token = '' where user_name = 'woosung';
 
 @sqlroute.post("/getuser")
 async def getuser(token: str=Form(...)):

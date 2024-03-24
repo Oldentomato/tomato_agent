@@ -11,11 +11,12 @@ from langchain.agents import (
 from .tools import get_tools
 from util import get_openai_model
 from langchain_community.tools.convert_to_openai import format_tool_to_openai_function
+from langchain.memory.chat_message_histories.in_memory import ChatMessageHistory
 from langchain.agents.format_scratchpad import format_to_openai_function_messages
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import BaseChatPromptTemplate
-from langchain.schema import AgentAction, AgentFinish, HumanMessage, message_to_dict, messages_from_dict
+from langchain.schema import AgentAction, AgentFinish, HumanMessage, messages_to_dict, messages_from_dict
 from util import MyAgentCallback
 import json
 
@@ -116,7 +117,7 @@ class CustomPromptTemplate(BaseChatPromptTemplate):
 # Set up the base template
 
 class LangAgent:
-    def __init__(self,g, chat_id):
+    def __init__(self,g):
         output_parser = CustomOutputParser()
         self.callback = MyAgentCallback(g)
 
@@ -142,28 +143,36 @@ class LangAgent:
         )
 
         
-    def _save_chats(self, chat_history):
+    def _save_chats(self, chat_history, url):
         # extracted_messages = self.memory.chat_memory.messages
-        ingest_to_db = message_to_dict(chat_history)
-        
-        json.dumps(ingest_to_db)
+        # api에서 token도 받아오도록 해야함
+        ingest_to_db = messages_to_dict(chat_history)
+        with open(url, 'w') as outfile:
+            json.dump(ingest_to_db,outfile)
 
 
-    def run(self,query, chatroom_url):
+    def _get_jsondata(self, url):
+        with open(url) as f:
+            retreive_from_db = json.load(f)
+        retrieved_messages = messages_from_dict(retreive_from_db)
+        retrieved_chat_history = ChatMessageHistory(messages=retrieved_messages)
+        return retrieved_chat_history
+
+    def run(self,query,history_url):
         """
             1. 사용자 입력이나 모든 이전단계를 LLMAgent에 전달합니다.
             2. 에이전트가 AgentFinish를 반환하면 바로 사용자에게 결과를 반환합니다.
             3. 에이전트가 AgentAction을 반환하면 이를 사용하여 도구를 호출하고 Observation을 가져옵니다.
             4. AgentAction과 Observation을 AgentFinish가 등장할 때까지 다시 에이전트에 전달하는 일을 반복합니다.
         """
-        #대화내역 가져오기
-        if chatroom_url != "":
-            retrieve_from_db = json.loads(chatroom_url)
-            retrieved_chat_history = ChatMessageHistory(messages=retrieved_messages)
-            memory = ConversationBufferMemory(chat_memory=retrieved_chat_history, memory_key="chat_history")
-        else:
-            memory = ConversationBufferMemory(memory_key="chat_history")
-
+        retrieved_chat_history = self._get_jsondata(history_url)
+        memory = ConversationBufferMemory(chat_memory=retrieved_chat_history, memory_key="chat_history")
+        # if history != None:
+        #     retrieved_chat_history = ChatMessageHistory(messages=history)
+        #     # memory = ConversationBufferMemory(memory_key="chat_history")
+        #     memory = ConversationBufferMemory(chat_memory=retrieved_chat_history, memory_key="chat_history")
+        # else:
+        #     memory = ConversationBufferMemory(memory_key="chat_history")
 
         def _handle_error(error) -> str:
             return str(error)[:50]
@@ -176,4 +185,8 @@ class LangAgent:
 
         agent_executor.run({"input":query}, callbacks=[self.callback])
 
-        # self._save_chats(self.memory.load_memory_variables({}))
+        # if(history == ""):
+            #채팅이 새로운 시작일 경우 다른거는 추가할 필요없이
+            #sql의 createchat을 호출하면 끝
+        #공통부분에 json저장함수를 호출할것
+        self._save_chats(memory.chat_memory.messages, history_url)

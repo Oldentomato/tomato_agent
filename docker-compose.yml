@@ -1,15 +1,11 @@
 version: "2"
-# volumes:
-#   store:
-#     external: true
-#     name: store
+
 
 services:
   db:
     image: mysql:8.0
     restart: always
-    env_file: ./db/.env
-    container_name: agent_mysql
+    container_name: chatdb
     ports:
       - 3306:3306
     tty: true #-it 대화형 허용
@@ -23,8 +19,8 @@ services:
       context: ./server
       dockerfile: Dockerfile
     restart: always
-    # volumes:
-    #   - store:/store
+    volumes:
+      - ./store:/store
     depends_on:
       db:
         condition: service_healthy

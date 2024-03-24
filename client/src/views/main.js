@@ -24,6 +24,7 @@ const req_option = [
 export default function MainView() {
     //debug
     const [chatRooms, setChatRooms] = useState([]);
+    const [history_url, sethistory_url] = useState("None");
     const navigate = useNavigate();
     const msgEnd = useRef();
     const [input, setInput] = useState("");
@@ -78,6 +79,39 @@ export default function MainView() {
         });
     }
 
+    const get_chatmsgs = async(item) =>{
+        if(item.path !== history_url){
+            sethistory_url(item.path)
+            const url = new URL("/agent/getchat", FETCH_URL);
+    
+            const formData = new FormData();
+            formData.append("chatroom_url", item.path)
+            fetch(url, {
+                method: 'POST',
+                body: formData
+            }).then(response=>{
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json(); // 응답 본문을 JSON으로 파싱
+            }).then(data=>{
+                if(data.success){
+                    const datas = data.item.messages
+                    const modified_datas = datas.map((e)=>{
+                        return {text: e.content, isBot: e.type === "human" ? false : true}
+                    })
+                    setMessages(modified_datas)
+                }
+                else{
+                    console.log(data)
+                }
+            }).catch(error => {
+                console.error('There was a problem with your fetch operation:', error);
+            });
+        }
+    }
+
+
     const handleSend = async(e) =>{
         setMessages((prevMessages)=>[
             ...prevMessages,
@@ -87,6 +121,10 @@ export default function MainView() {
         let response = null
         let url = null
 
+        if(history_url === ""){
+            //여기에 채팅방 새로생기는 ui기능 추가
+        }
+
         if(req === "chat"){
             url = new URL("/llm/chat", FETCH_URL);
         }else if(req === "agent"){
@@ -95,6 +133,9 @@ export default function MainView() {
         const formData  = new FormData();
         // url.searchParams.append("query", input);
         formData.append("query", input)
+        formData.append("history_url", history_url)
+        console.log(history_url)
+        // formData.append("chat_history", {})
         setInput("")
         response = await fetch(url,{
             method: 'POST',
@@ -138,9 +179,8 @@ export default function MainView() {
         }).then(data=>{
             if(data.success){
                 const result_data = data.item.map(item=>{
-                    return {'id': item.chat_id, 'name': 'Room_'+item.chat_id}
+                    return {'id': item.chat_id, 'name': 'Room_'+item.chat_id, 'path': item.chat_path}
                 })
-
                 setChatRooms(result_data)
             }
         }).catch(error => {
@@ -176,6 +216,7 @@ export default function MainView() {
             console.error('There was a problem with your fetch operation:', error);
         });
     }
+
 
     useEffect(()=>{
         logincheck()
@@ -228,7 +269,9 @@ export default function MainView() {
                     <List
                         dataSource={chatRooms}
                         renderItem={item => (
-                        <List.Item key={item.id}>
+                        <List.Item key={item.id} onClick={()=>{
+                            get_chatmsgs(item)
+                        }}>
                             <List.Item.Meta title={item.name} />
                         </List.Item>
                         )}

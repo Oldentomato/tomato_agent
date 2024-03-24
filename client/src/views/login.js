@@ -62,7 +62,7 @@ export default function LoginView(){
                     window.alert(data.item.user_name+"님 환영합니다")
                     navigate("/chat")
                 }else{
-                    window.alert("로그인에 실패했습니다")
+                    window.alert("로그인에 실패했습니다 "+data.error)
                 }
 
             })

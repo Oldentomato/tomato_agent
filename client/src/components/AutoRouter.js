@@ -26,7 +26,8 @@ const Authorization = ({
         return <Navigate to={redirectTo} />;
     }
 };
-
+//취약점이 있음 반대로 채팅방에서 로그인으로 넘어가면 문제없이 로그인화면으로 넘어감
+//이 부분은 그냥 지우는 방향으로 생각해볼것
 const AutoRouter = () => {
     return (
         <Router>
