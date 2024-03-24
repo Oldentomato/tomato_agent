@@ -147,7 +147,7 @@ class LangAgent:
         # extracted_messages = self.memory.chat_memory.messages
         # api에서 token도 받아오도록 해야함
         ingest_to_db = messages_to_dict(chat_history)
-        with open(url, 'w') as outfile:
+        with open(url, 'w+') as outfile:
             json.dump(ingest_to_db,outfile)
 
 
@@ -158,15 +158,18 @@ class LangAgent:
         retrieved_chat_history = ChatMessageHistory(messages=retrieved_messages)
         return retrieved_chat_history
 
-    def run(self,query,history_url):
+    def run(self,query,history_url,is_new):
         """
             1. 사용자 입력이나 모든 이전단계를 LLMAgent에 전달합니다.
             2. 에이전트가 AgentFinish를 반환하면 바로 사용자에게 결과를 반환합니다.
             3. 에이전트가 AgentAction을 반환하면 이를 사용하여 도구를 호출하고 Observation을 가져옵니다.
             4. AgentAction과 Observation을 AgentFinish가 등장할 때까지 다시 에이전트에 전달하는 일을 반복합니다.
         """
-        retrieved_chat_history = self._get_jsondata(history_url)
-        memory = ConversationBufferMemory(chat_memory=retrieved_chat_history, memory_key="chat_history")
+        if is_new:
+            memory = ConversationBufferMemory(memory_key="chat_history")
+        else:
+            retrieved_chat_history = self._get_jsondata(history_url)
+            memory = ConversationBufferMemory(chat_memory=retrieved_chat_history, memory_key="chat_history")
         # if history != None:
         #     retrieved_chat_history = ChatMessageHistory(messages=history)
         #     # memory = ConversationBufferMemory(memory_key="chat_history")

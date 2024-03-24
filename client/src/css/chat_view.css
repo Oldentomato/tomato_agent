@@ -188,6 +188,15 @@ margin-right: 0.5rem;
 margin-right: 0.75rem;
 }
 
+.chatList {
+    position: absolute;
+    margin-right: auto;
+    height: 10%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
 .chatFooter {
 margin-top: auto;
 width: 100%;

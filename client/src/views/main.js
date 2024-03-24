@@ -24,7 +24,7 @@ const req_option = [
 export default function MainView() {
     //debug
     const [chatRooms, setChatRooms] = useState([]);
-    const [history_url, sethistory_url] = useState("None");
+    const [history_url, sethistory_url] = useState("");
     const navigate = useNavigate();
     const msgEnd = useRef();
     const [input, setInput] = useState("");
@@ -79,6 +79,14 @@ export default function MainView() {
         });
     }
 
+    const on_new_chat = () =>{
+        sethistory_url("")
+        setMessages([{
+            text: "say something!",
+            isBot: true
+        }])
+    }
+
     const get_chatmsgs = async(item) =>{
         if(item.path !== history_url){
             sethistory_url(item.path)
@@ -110,6 +118,33 @@ export default function MainView() {
             });
         }
     }
+    //fetch요청보내는 부분 중복이 많음 하나의 함수로 만들어서 사용하도록 전체적으로 수정이 필요함
+    const new_chat_sql = () =>{
+        const formData = new FormData();
+
+        const url = new URL("/db/createchat", FETCH_URL);
+        formData.append("token", token)
+        formData.append("chat_num", chatRooms.length)
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        }).then(response=>{
+            if (!response.ok) {
+                throw new Error('Network was not ok');
+            }
+            return response.json(); // 응답 본문을 JSON으로 파싱
+        }).then(data=>{
+            if(data.success){
+                console.log("its ok")
+            }
+            else{
+                console.log(data)
+                throw new Error('response was not ok');
+            }
+        }).catch(error => {
+            console.error('There was a problem with your fetch operation:', error);
+        });
+    }
 
 
     const handleSend = async(e) =>{
@@ -120,22 +155,28 @@ export default function MainView() {
 
         let response = null
         let url = null
-
-        if(history_url === ""){
-            //여기에 채팅방 새로생기는 ui기능 추가
-        }
+        const formData  = new FormData();
 
         if(req === "chat"){
             url = new URL("/llm/chat", FETCH_URL);
         }else if(req === "agent"){
             url = new URL("/agent/chat", FETCH_URL);
+            if(history_url === ""){
+                setChatRooms((prev)=>[
+                    ...prev,
+                    {'id': token+chatRooms.length, 'name': 'Room_'+token+chatRooms.length, 'path': './store/'+token+chatRooms.length+'.json'}
+                ])
+                formData.append("history_url", './store/'+token+chatRooms.length+'.json')
+                formData.append("is_new", true)
+                new_chat_sql()
+            }
+            else{
+                formData.append("history_url", history_url)
+                formData.append("is_new", false)
+            }
         }
-        const formData  = new FormData();
-        // url.searchParams.append("query", input);
         formData.append("query", input)
-        formData.append("history_url", history_url)
-        console.log(history_url)
-        // formData.append("chat_history", {})
+        
         setInput("")
         response = await fetch(url,{
             method: 'POST',
@@ -260,6 +301,20 @@ export default function MainView() {
                             </div>
                         </Item>)}
                 </AnimatePresence>
+                {(answer === "" && isLoading) &&
+                    <div className="chat bot">
+                        <img className="chatImg" src={gptImgLogo} /> <p className="txt">. . .</p>
+                    </div>
+                }
+                {answer !== "" &&
+                    <div className="chat bot">
+                        <img className="chatImg" src={gptImgLogo} /> <p style={{whiteSpace:"pre-line", textAlign:'left'}} className="txt">{answer}</p>
+                    </div>
+                }
+                <div ref={msgEnd} />
+            </div>
+
+            <div className='chatList'>
                 <Sider width={200} style={{ background: '#fff', borderLeft: '1px solid #f0f0f0' }}>
                     <Menu
                     mode="inline"
@@ -278,17 +333,6 @@ export default function MainView() {
                     />
                     </Menu>
                 </Sider>
-                {(answer === "" && isLoading) &&
-                    <div className="chat bot">
-                        <img className="chatImg" src={gptImgLogo} /> <p className="txt">. . .</p>
-                    </div>
-                }
-                {answer !== "" &&
-                    <div className="chat bot">
-                        <img className="chatImg" src={gptImgLogo} /> <p style={{whiteSpace:"pre-line", textAlign:'left'}} className="txt">{answer}</p>
-                    </div>
-                }
-                <div ref={msgEnd} />
             </div>
             <div className="chatFooter">
                 <Radio.Group optionType="button" buttonStyle="solid" options={req_option} onChange={onRequestChange} value={req} />
@@ -296,6 +340,9 @@ export default function MainView() {
                 <div className="inp">
                     <input type="text" placeholder="Send a message" onKeyUp={handleOnKeyPress} value={input} onChange={(e)=>{setInput(e.target.value)}}/><Button className="send" type="primary" onClick={handleSend} loading={isLoading} icon={<SendOutlined />}/>
                 </div>
+                <Button type="text" onClick={on_new_chat} style={{ color: 'white' }}>
+                    new chat
+                </Button>
             </div>
         </div>
     )
