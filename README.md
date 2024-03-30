@@ -65,6 +65,9 @@ pip install docker==6.1.3
 docker compose up -d
 #do not use docker-compose
 ```
+## to-do  
+- 프론트부분에서 fetch요청함수를 모듈화하여 반복정의를 최소화할것  
+- 프론트부분에서 sql요청(delete) promise객체로 처리하기
 
 ## License
 MIT

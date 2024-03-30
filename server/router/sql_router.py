@@ -84,12 +84,12 @@ async def logout(token: str=Form(...)):
 
 @sqlroute.post("/getchats")
 async def get_chats(token: str=Form(...)):
-    item = db.query(User).filter(User.token == token).first()
-    item = db.query(Chats).filter(Chats.user_name == item.user_name).all()
-    if item is None:
+    user_item = db.query(User).filter(User.token == token).first()
+    chat_item = db.query(Chats).filter(Chats.user_name == user_item.user_name).all()
+    if chat_item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     else:
-        return {"success": True, "item":item}
+        return {"success": True, "item":chat_item}
 
 @sqlroute.post("/createchat")
 async def create_chat(token: str=Form(...), chat_num: str=Form(...)):
@@ -101,3 +101,14 @@ async def create_chat(token: str=Form(...), chat_num: str=Form(...)):
         db.add(add_chat)
         db.commit()
         return {"success": True}
+
+@sqlroute.post("/deletechat")
+async def delete_chat(chat_id: str=Form(...)):
+    item = db.query(Chats).filter(Chats.chat_id == chat_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    else:
+        db.delete(item)
+        db.commit()
+        return {"success": True}
+#delete from chats where chat_id = 'ETWRSYEflW0';

@@ -1,5 +1,8 @@
 import {useState, useEffect, useRef} from 'react'
-import {Radio, Button, Layout, Menu, List} from 'antd'
+import {Radio, Button, Layout} from 'antd'
+import {theme, ConfigProvider} from "antd";
+import InfiniteScroll from 'react-infinite-scroll-component';
+import { Divider, List } from 'antd';
 import Item from '../components/Item'
 import { AnimatePresence } from "framer-motion";
 import { SendOutlined } from '@ant-design/icons';
@@ -8,7 +11,6 @@ import {useNavigate} from "react-router-dom"
 import { LogoutOutlined } from '@ant-design/icons';
 
 const {Header} = Layout;
-const {Sider} = Layout;
 
 const req_option = [
     {
@@ -25,6 +27,7 @@ export default function MainView() {
     //debug
     const [chatRooms, setChatRooms] = useState([]);
     const [history_url, sethistory_url] = useState("");
+    const [chat_sel, setchat_sel] = useState("");
     const navigate = useNavigate();
     const msgEnd = useRef();
     const [input, setInput] = useState("");
@@ -34,6 +37,7 @@ export default function MainView() {
         text: "say something!",
         isBot: true
     }])
+    const {defualtAlgorithm, darkAlgorithm} = theme;
     const [is_loading, set_is_loading] = useState(false);
     const [req, setreq] = useState('chat');
     const token = localStorage.getItem('token')
@@ -203,6 +207,62 @@ export default function MainView() {
         
     }
 
+    const deletechat_sql = (chat_id) =>{//promise객체로 변경해야함
+        const formData = new FormData();
+
+        const url = new URL("/db/deletechat", FETCH_URL);
+        formData.append("chat_id", chat_id)
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        }).then(response=>{
+            if (!response.ok) {
+                throw new Error('Network was not ok');
+            }
+            return response.json(); // 응답 본문을 JSON으로 파싱
+        }).then(data=>{
+            if(data.success){
+                console.log("its ok")
+            }
+            else{
+                console.log(data)
+                throw new Error('response was not ok');
+            }
+        }).catch(error => {
+            console.error('There was a problem with your fetch operation:', error);
+        });
+    }
+
+    const deletechat = async(item) =>{
+        let url = null
+        url = new URL("/agent/deletechat", FETCH_URL);
+        const formData  = new FormData();
+        formData.append("chat_path", item.path);
+        fetch(url,{
+            method: 'POST',
+            body: formData
+        }).then(response=>{
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json(); // 응답 본문을 JSON으로 파싱
+        }).then(data=>{
+            if(data.success){
+                deletechat_sql(item.id)
+                setChatRooms(prevArray =>
+                    prevArray.filter(arr => arr.id !== item.id))
+                sethistory_url("")
+                setMessages([{
+                    text: "say something!",
+                    isBot: true
+                }])
+            }
+            
+        }).catch(error => {
+            console.error('There was a problem with your fetch operation:', error);
+        });        
+    }
+
     const getchats = () =>{
         let url = null
         url = new URL("/db/getchats", FETCH_URL);
@@ -210,7 +270,6 @@ export default function MainView() {
         formData.append("token", token);
         fetch(url,{
             method: 'POST',
-            mode: 'cors',
             body: formData
         }).then(response=>{
             if (!response.ok) {
@@ -277,6 +336,61 @@ export default function MainView() {
                     logout
                 </Button>
             </Header>
+            <div
+                id="scrollableDiv"
+                style={{
+                    position:'absolute',
+                    marginTop: '5%',
+                    width: '30%',
+                    height: '70%',
+                    overflow: 'auto',
+                    padding: '0 16px',
+                    border: '1px solid rgba(140, 140, 140, 0.35)',
+                }}
+                >
+                <ConfigProvider theme={{algorithm: darkAlgorithm}}>
+                    <InfiniteScroll
+                        dataLength={chatRooms.length}
+                        // next={{}}
+                        hasMore={chatRooms.length < 10}
+                        // loader={
+                        // <Skeleton
+                        //     avatar
+                        //     paragraph={{
+                        //     rows: 1,
+                        //     }}
+                        //     active
+                        // />
+                        // }
+                        endMessage={<Divider plain>It is all, nothing more 🤐</Divider>}
+                        scrollableTarget="scrollableDiv"
+                    >
+                        <List
+                        dataSource={chatRooms}
+                        renderItem={(item) => (
+                            <List.Item key={item.id}>
+                            <List.Item.Meta
+                                // avatar={<Avatar src={item.picture.large} />}
+                                title={item.name}
+                                description={'날짜로 교체할것'}
+                            />
+                            <Button onClick={()=>{
+                                get_chatmsgs(item)
+                            }}>Start</Button>
+                            <Button onClick={()=>{
+                                if(window.confirm("정말로 삭제합니까?")){
+                                    deletechat(item)
+                                }
+                                
+                            }}>Delete</Button>
+                            </List.Item>
+                        )}
+                        />
+                    </InfiniteScroll>
+
+                </ConfigProvider>
+
+            </div>
             <div className="chats">
                 <AnimatePresence>
                     {messages.map((message, i)=>
@@ -314,26 +428,8 @@ export default function MainView() {
                 <div ref={msgEnd} />
             </div>
 
-            <div className='chatList'>
-                <Sider width={200} style={{ background: '#fff', borderLeft: '1px solid #f0f0f0' }}>
-                    <Menu
-                    mode="inline"
-                    defaultSelectedKeys={['0']}
-                    style={{ height: '100%', borderRight: 0 }}
-                    >
-                    <List
-                        dataSource={chatRooms}
-                        renderItem={item => (
-                        <List.Item key={item.id} onClick={()=>{
-                            get_chatmsgs(item)
-                        }}>
-                            <List.Item.Meta title={item.name} />
-                        </List.Item>
-                        )}
-                    />
-                    </Menu>
-                </Sider>
-            </div>
+
+
             <div className="chatFooter">
                 <Radio.Group optionType="button" buttonStyle="solid" options={req_option} onChange={onRequestChange} value={req} />
                 <br />

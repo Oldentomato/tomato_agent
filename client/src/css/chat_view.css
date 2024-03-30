@@ -64,7 +64,7 @@ overflow: hidden;
 overflow-y: scroll;
 scroll-behavior: smooth;
 margin-top: 5%;
-margin-left: 20%;
+margin-left: 35%;
 width: 100%;
 max-width: 85rem;
 height: calc(100vh - 30rem);
@@ -199,12 +199,13 @@ margin-right: 0.75rem;
 
 .chatFooter {
 margin-top: auto;
-width: 100%;
+width: 80%;
 display: flex;
 flex-direction: column;
 align-items: center;
 justify-content: center;
 height: 10vh;
+margin-left: 20%;
 }
 
 .inp {
