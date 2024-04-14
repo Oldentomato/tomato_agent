@@ -5,13 +5,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 import re
 import os 
 import pickle
-import openai
+# import openai
 
 class Embedding:
     def __init__(self):
-        self.__save_bm_dir = "./store/bmcontents.pkl"
-        self.__save_openai_dir = ""
-        self.__EMBEDDING_MODEL = "text-embedding-ada-002"
+        self.__save_bm_dir = "/html_store/bmcontents.pkl"
+        # self.__save_openai_dir = ""
+        # self.__EMBEDDING_MODEL = "text-embedding-ada-002"
 
     def __find_elements_with_specific_value(self, tuple_list, target_value):
         result_list = [t[0] for t in tuple_list if t[1] == target_value]
@@ -36,37 +36,37 @@ class Embedding:
 
         return lemm_sentence
 
-    def openai_embedding(self, content, url):
-        try:
-            contents = []
-            if os.path.isfile(self.__save_openai_dir):
-                with open(self.__save_openai_dir) as f:
-                    load_content_info = pickle.load(f)
-                    embedd_content = load_content_info["embedd_content"]
-                    contents = load_content_info["content"]
-                    urls = load_content_info["urls"]
+    # def openai_embedding(self, content, url):
+    #     try:
+    #         contents = []
+    #         if os.path.isfile(self.__save_openai_dir):
+    #             with open(self.__save_openai_dir) as f:
+    #                 load_content_info = pickle.load(f)
+    #                 embedd_content = load_content_info["embedd_content"]
+    #                 contents = load_content_info["content"]
+    #                 urls = load_content_info["urls"]
 
-            result = openai.embeddings.create(
-                model = self.__EMBEDDING_MODEL,
-                input=content
-            )
+    #         result = openai.embeddings.create(
+    #             model = self.__EMBEDDING_MODEL,
+    #             input=content
+    #         )
 
-            contents.append(content)
-            result_content.append(result["data"][0]["embedding"])
+    #         contents.append(content)
+    #         result_content.append(result["data"][0]["embedding"])
 
-            save_info = {
-                "embedd_content": result_content,
-                "origin_content": contents,
-                "url": url
-            }
+    #         save_info = {
+    #             "embedd_content": result_content,
+    #             "origin_content": contents,
+    #             "url": url
+    #         }
 
-            with open(self.__save_bm_dir, "wb") as f:
-                pickle.dump(save_info, f)
+    #         with open(self.__save_bm_dir, "wb") as f:
+    #             pickle.dump(save_info, f)
 
-        except Exception as e:
-            print(f"error:{e}")
-            return False,e
-        return True, None
+    #     except Exception as e:
+    #         print(f"error:{e}")
+    #         return False,e
+    #     return True, None
 
 # 위에거 보고 수정이 필요함 content불러오는 부분에서...
     def bm25_embedding(self, content, url):

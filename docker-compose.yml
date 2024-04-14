@@ -20,6 +20,7 @@ services:
     volumes:
       - ./db/:/docker-entrypoint-initdb.d
     platform: linux/x86_64
+  
   back:
     build:
       context: ./server
@@ -27,6 +28,7 @@ services:
     restart: always
     volumes:
       - ./store:/store
+      - ./html_store:/html_store
     depends_on:
       db:
         condition: service_healthy
@@ -36,6 +38,40 @@ services:
     command: uvicorn --host 0.0.0.0 api.api:app
     ports:
       - 8000:8000
+
+  elastic:
+    image: elasticsearch:7.17.18
+    container_name: elastic
+    environment:
+      - node.name=elastic
+      - cluster.name=es-docker-cluster
+      - "discovery.type=single-node"
+      - bootstrap,memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+      - "xpack.security.enabled=false"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data01:/usr/share/elasticsearch/data
+    depends_on:
+      back:
+        condition: service_healthy
+    ports:
+      - 9200:9200
+
+  kibana:
+    image: kibana:7.17.18
+    container_name: kibana
+    ports:
+      - 5601:5601
+    depends_on:
+      elastic:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_URL: http://elastic:9200
+      ELASTICSEARCH_HOSTS: http://elastic:9200
   
   front:
     build:
@@ -49,3 +85,7 @@ services:
     command: npm run start
     ports:
       - 3000:3000
+
+volumes:
+  data01:
+    driver: local

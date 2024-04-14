@@ -1,7 +1,7 @@
 import re
 from typing import List, Union
 
-from langchain.chains import LLMChain
+from langchain.chat_models import ChatOpenAI
 from langchain.agents import (
     AgentExecutor,
     AgentOutputParser,
@@ -16,6 +16,10 @@ from langchain.agents.format_scratchpad import format_to_openai_function_message
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import BaseChatPromptTemplate
+from langchain.schema.runnable import RunnablePassthrough
+from langchain.prompts import MessagesPlaceholder
+from langchain.tools.render import format_tool_to_openai_function
+from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.schema import AgentAction, AgentFinish, HumanMessage, messages_to_dict, messages_from_dict
 from util import MyAgentCallback
 import json
@@ -31,116 +35,76 @@ import json
 # intermediate_steps : 이전 (AgentAction, Observation) 쌍의 튜플입니다. 일반적으로 모델에 직접 전달되지는 않지만 프롬프트 템플릿에서 특정 방식으로 포맷을 정합니다.
 # input : 일반적인 사용자 입력
 
-_template = """Complete the objective as best you can. You have access to the following tools:
-
-{tools}
-
-and reference the previous conversation:
-{chat_history}
-
-Use the following format:
-
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question and translate to korean
-
-These were previous tasks you completed:
-
-Maybe just conversation don't follow format, just answer. and also can use previous conversation.
-
-Begin!
-
-Question: {input}
-{agent_scratchpad}"""
-
-class CustomOutputParser(AgentOutputParser):
-    def parse(self, llm_output: str) -> Union[AgentAction, AgentFinish]:
-        # Check if agent should finish
-        if "Final Answer:" in llm_output:
-            return AgentFinish(
-                # Return values is generally always a dictionary with a single `output` key
-                # It is not recommended to try anything else at the moment :)
-                return_values={
-                    "output": llm_output.split("Final Answer:")[-1].strip()
-                },
-                log=llm_output,
-            )
-        # Parse out the action and action input
-        regex = (
-            r"Action\s*\d*\s*:(.*?)\Action\s*\d*\s*Input\s*\d*\s*:[\s]*(.*)"
-            r"|https?://\S+"
-        )
-        match = re.search(regex, llm_output, re.DOTALL)
-        if not match:
-            raise ValueError(f"Could not parse LLM output: `{llm_output}`")
-        action = match.group(1).strip()
-        action_input = match.group(2)
-
-        # Return the action and action input
-        return AgentAction(
-            tool=action,
-            tool_input=action_input.strip(" ").strip('"'),
-            log=llm_output,
-        )
-
-class CustomPromptTemplate(BaseChatPromptTemplate):
-    # The template to use
-    template: str
-    # The list of tools available
-    tools: List[Tool]
-
-    def format_messages(self, **kwargs) -> str:
-        # 중간 단계 가져오기 (AgentAction, Observation tuples)
-        # 특정방법으로 포맷
-        intermediate_steps = kwargs.pop("intermediate_steps")
-        thoughts = ""
-        for action, observation in intermediate_steps:
-            thoughts += action.log
-            thoughts += f"\Observation: {observation}\Thought: "
-        # Set the agent_scratchpad variable to that value
-        kwargs["agent_scratchpad"] = thoughts
-        # Create a tools variable from the list of tools provided
-        kwargs["tools"] = "\n".join(
-            [f"{tool.name}: {tool.description}" for tool in self.tools]
-        )
-        # Create a list of tool names for the tools provided
-        kwargs["tool_names"] = ", ".join([tool.name for tool in self.tools])
-
-        formatted = self.template.format(**kwargs)
-        return [HumanMessage(content=formatted)]
 
 # Set up the base template
 
 class LangAgent:
     def __init__(self,g):
-        output_parser = CustomOutputParser()
+        # output_parser = CustomOutputParser()
         self.callback = MyAgentCallback(g)
 
-        llm = get_openai_model()
+        template = """
+            You are a kind recommender assistant. And retrieve informations with available tools.
+            Given User {input}, figure out the user's intentions and decide which tool to use. Try to use available tools
+            For successful retrieval, I will give some examples
 
-        prompt = CustomPromptTemplate(
-            template=_template,
-            tools=get_tools(),
-            # 이 변수는 동적으로 생성되므로 'agent_scratchpad', 'tools' 및 'tool_names' 변수가 생략됩니다.
-            # 여기에는 'intermediate_steps' 변수가 포함됩니다. 이 변수는 필요하기 때문입니다
-            input_variables=["input", "intermediate_steps", "chat_history"],
-        )
+            - Weather information
+            If you think user need weather information, you can use 'get_current_temperature' function. If you don't have user information, define user is in Seoul, Korea and use the function.
+
+            - More informations
+            If user wants MORE informations, use 'get_googleapi_search' with extracted movie, director or cast name.
+
+            When finished, go to Final Step.
+
+            - Final Step
+            Use what you retrieved.
+            When you recommend movies, you should answer based on this {recommend_format} structure.
+        """
+        recommend_format = """
+            - <Short greetings>
+            - <movie name> - <plot>
+            - <movie name> - <plot>
+            - <movie name> - <plot>
+            - <Explanation about your recommendation in more than two sentences>
+            - <Greetings>
+            ***ANSWER IN KOREAN!!***
+        """
+
+        llm = get_openai_model().bind(functions=functions)
+        functions = [
+            format_tool_to_openai_function(f) for f in get_tools()
+        ]
+        self.retrieval_chain = RunnablePassthrough.assign(
+            agent_scratchpad = lambda x: format_to_openai_functions(x["intermediate_steps"])
+        ) | prompt1 | model | OpenAIFunctionsAgentOutputParser()
+
+        # prompt = CustomPromptTemplate(
+        #     template=_template,
+        #     tools=get_tools(),
+        #     # 이 변수는 동적으로 생성되므로 'agent_scratchpad', 'tools' 및 'tool_names' 변수가 생략됩니다.
+        #     # 여기에는 'intermediate_steps' 변수가 포함됩니다. 이 변수는 필요하기 때문입니다
+        #     input_variables=["input", "intermediate_steps", "chat_history"],
+        # )
+
+
+        # prompt = PromptTemplate(input_variables=['input'], template=template)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", template),
+            MessagesPlaceholder(variable_name='chat_history'),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name='agent_scratchpad')
+        ])
 
         # LLM chain consisting of the LLM and a prompt
-        llm_chain = LLMChain(llm=llm, prompt=prompt)
+        
 
-        tool_names = [tool.name for tool in get_tools()]
-        self.agent = LLMSingleActionAgent(
-            llm_chain=llm_chain, 
-            output_parser=output_parser,
-            stop=["\Observation:"], # 이 문자열이 발견되는 즉시 LLM이 생성 작업을 중단하도록 지시합니다.
-            allowed_tools=tool_names # LLMOutput을 AgentAction이나 AgentFinish 객체로 파싱하는 방법을 결정합니다.
-        )
+        # tool_names = [tool.name for tool in get_tools()]
+        # self.agent = LLMSingleActionAgent(
+        #     llm_chain=llm_chain, 
+        #     output_parser=output_parser,
+        #     stop=["\Observation:"], # 이 문자열이 발견되는 즉시 LLM이 생성 작업을 중단하도록 지시합니다.
+        #     allowed_tools=tool_names # LLMOutput을 AgentAction이나 AgentFinish 객체로 파싱하는 방법을 결정합니다.
+        # )
 
         
     def _save_chats(self, chat_history, url):
@@ -181,7 +145,7 @@ class LangAgent:
             return str(error)[:50]
 
         agent_executor = AgentExecutor(
-            agent=self.agent, tools=get_tools(), verbose=True,
+            agent=self.retrieval_chain, tools=get_tools(), verbose=True,
             handle_parsing_errors=_handle_error,
             memory=memory
         )   

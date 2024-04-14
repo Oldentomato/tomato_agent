@@ -2,3 +2,4 @@
 /server/.env
 /db/.env
 /db
+*.json

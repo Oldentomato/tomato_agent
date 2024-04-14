@@ -27,7 +27,6 @@ export default function MainView() {
     //debug
     const [chatRooms, setChatRooms] = useState([]);
     const [history_url, sethistory_url] = useState("");
-    const [chat_sel, setchat_sel] = useState("");
     const navigate = useNavigate();
     const msgEnd = useRef();
     const [input, setInput] = useState("");
@@ -173,6 +172,7 @@ export default function MainView() {
                 formData.append("history_url", './store/'+token+chatRooms.length+'.json')
                 formData.append("is_new", true)
                 new_chat_sql()
+                sethistory_url('./store/'+token+chatRooms.length+'.json')
             }
             else{
                 formData.append("history_url", history_url)
