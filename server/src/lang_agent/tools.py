@@ -1,5 +1,5 @@
-from langchain.pydantic_v1 import BaseModel, Field
-from langchain.tools import BaseTool, StructuredTool
+from pydantic.v1 import BaseModel, Field
+from langchain.agents import tool
 import pickle
 from .define_tools import *
 # from util import get_google_search, get_openai_model

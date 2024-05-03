@@ -112,3 +112,4 @@ async def delete_chat(chat_id: str=Form(...)):
         db.commit()
         return {"success": True}
 #delete from chats where chat_id = 'ETWRSYEflW0';
+#delete from chats;

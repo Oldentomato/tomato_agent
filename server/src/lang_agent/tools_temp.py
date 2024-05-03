@@ -1,61 +1,68 @@
-from langchain.utilities import GoogleSearchAPIWrapper
-from langchain.document_loaders import WebBaseLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.chains.summarize import load_summarize_chain
-from util.getapi import get_weather_api, get_google_search
+from pydantic.v1 import BaseModel, Field
+from langchain.agents import tool
+import requests
+from dotenv import load_dotenv
+import os
+from datetime import datetime,timedelta
+import json
+from datetime import datetime
+import pandas as pd
+from util.getapi import get_google_search
 
-def search_api(query : str) -> str:
+load_dotenv(verbose=True)
+__excel_dir = os.getenv("REGION_EXCEL_DIR")
+data = pd.read_excel(__excel_dir)
+
+# Define the input schema
+class Weather_Input(BaseModel):
+    region: str = Field(..., description="extract region name in query")
+
+class GoogleSearch_Input(BaseModel):
+    keyword: str = Field(..., description="search for keyword")
+
+@tool(args_schema=GoogleSearch_Input)
+def __get_googlesearch_tool(keyword: str) -> str:
+    """search at google to keyword"""
     search = get_google_search()
-    # search = GoogleSearchAPIWrapper()
-    result = search.run(query)
-    # print(result) #str이 return이 아님
+    result = search.run(keyword)
     return result
 
-# print(search_api("스트리머 괴물쥐"))
 
-def calc_num(a:int, b:int, c:str) -> int:
-    temp = -1
-    if c == "+":
-        temp = a + b
-    elif c == "-":
-        temp = a - b
-    elif c == "*":
-        temp = a * b
-    elif c == "/":
-        temp = a / b
+@tool(args_schema=Weather_Input)
+def __get_weather_tool(region: str) -> str:
+    """search weather info to region"""
+
+    now = datetime.now()
+    now_time = now.hour
+
+    apiKey = os.getenv("WEATHER_API_KEY")
+
+    if now.month < 10:
+        month = f"0{now.month}"
     else:
-        print(f"error symbol: {c}")
-
-    return temp
-
-
-def save_html(summary: str):
-    #구조: 1. url을 받으면 파싱해서 내용만 추출한 뒤, 요약을 시킴
-    # 2. 요약된 내용을 임베딩하여 url과 저장 (embedd_summary, url)
-    # 3. 탐색할 때는 요청쿼리와 임베딩 요약내용을 비교하여 찾고 url을 가져온다음 webbrowser로 열기
-    pass
-
-#html 탐색할 때
-def get_html(url: str):
-    loader = WebBaseLoader(url)
-    documents = loader.load()
-
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-    split_docs = text_splitter.split_documents(documents)
-
-    return split_docs
-
-def get_weather(region: str):
-    data = pd.read_excel('./server/data/coordinate.xlsx')#나중에 환경변수로 빼놓을것
-    now_time = 14
-    base_date = '20240413'
+        month = str(now.month)
+    if now.day < 10:
+        day = f"0{now.day}"
+    else:
+        day = str(now.day)
+    base_date = f'{str(now.year)}{month}{str(day)}'
     base_time = f'{now_time-1}30'
-    apiKey = get_weather_api()
-    result_template = ""
 
+    def check_contains(row):
+        # 행의 주소열 문자열
+        row_str = row['3단계']
+        # 검색어가 행의 주소열에 포함되는지 확인
+        return region in row_str
 
-    searched_data = data.loc[(data['3단계'] == "영등포동"),['격자 X','격자 Y']].values[0]
-    nx, ny = searched_data
+    # region = '영등포동'
+    # nx = '62'
+    # ny = '123'
+    try:
+        searched_data = data.loc[data['3단계'].str.contains(region, na=False),['격자 X','격자 Y']].values[0]
+    except:
+        return "해당 지역명은 없습니다."
+    else:
+        nx, ny = searched_data
 
 
     deg_code = {0 : 'N', 360 : 'N', 180 : 'S', 270 : 'W', 90 : 'E', 22.5 :'NNE',
@@ -79,13 +86,29 @@ def get_weather(region: str):
             close_dir = deg_code[deg]
         return close_dir
 
-    #여기도 환경변수로 빼놓을것
+
+    #알고 싶은 시간
+    input_d = datetime.strptime(base_date + base_time, '%Y%m%d%H%M')
+    print(input_d)
+
+    #실제 입력 시간
+    input_d = datetime.strptime(base_date + base_time, '%Y%m%d%H%M') - timedelta(hours=1)
+    print(input_d)
+
+    input_datetime = datetime.strftime(input_d, '%Y%m%d%H%M')
+    input_date = input_datetime[:-4]
+    input_time = input_datetime[-4:]
+
     url = 'http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst'
     params = {'serviceKey': apiKey, 'pageNo' : '1', 'numOfRows' : '1000', 'dataType' : 'JSON',  'base_date' : base_date, 'base_time' : base_time, 'nx' : str(nx), 'ny' : str(ny) }
 
     response = requests.get(url, params=params, verify=False)
     res = json.loads(response.text)
-
+    
+    template = ""
+    #추후 수정해야함
+    # if res['resultMsg'] == "NO_DATA":
+    #     return "데이터를 찾을 수 없습니다."
 
     informations = dict()
     for items in res['response']['body']['items']['item'] :
@@ -97,16 +120,18 @@ def get_weather(region: str):
         
         if fcstTime not in informations.keys() :
             informations[fcstTime] = dict()
+    #     print(items['category'], items['fcstTime'], items['fcstValue'])
+    #     print(informations[fcstTime])
         informations[fcstTime][cate] = fcstValue
 
 
     for key, val in zip(informations.keys(), informations.values()) :
     #     print(key, val)
         # val['LGT'] -- 낙뢰 
-        template = f"""{base_date[:4]}년 {base_date[4:6]}월 {base_date[-2:]}일 {key[:2]}시 {key[2:]}분 {(int(nx), int(ny))} ({region}) 지역의 날씨는 """ 
+        template += f"""{base_date[:4]}년 {base_date[4:6]}월 {base_date[-2:]}일 {key[:2]}시 {key[2:]}분 {(int(nx), int(ny))} ({region}) 지역의 날씨는 """ 
         
-        # 맑음(1), 구름많음(3), 흐림(4)
         if val['SKY'] :
+            # skycode = int(val['SKY'])
             sky_temp = sky_code[int(val['SKY'])]
             template += sky_temp + " "
         
@@ -144,7 +169,9 @@ def get_weather(region: str):
             
         template += f"풍속 {vec_temp} 방향 {wsd_temp}m/s \n"
 
-        result_template += template
-        template = ""
+    # print(template)
+    return template
 
-    return result_template
+__tools = [__get_weather_tool,__get_googlesearch_tool]
+def get_tools():
+    return __tools

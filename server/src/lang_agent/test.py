@@ -8,11 +8,17 @@ import pandas as pd
 
 load_dotenv(verbose=True)
 
-now_time = 14
+now = datetime.now()
+now_time = now.hour
 
 apiKey = os.getenv("WEATHER_API_KEY")
-base_date = '20240413'
+if now.month < 10:
+    month = f"0{now.month}"
+else:
+    month = str(now.month)
+base_date = f'{str(now.year)}{month}{str(now.day)}'
 base_time = f'{now_time-1}30'
+
 region = '영등포동'
 # nx = '62'
 # ny = '123'

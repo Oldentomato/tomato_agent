@@ -18,3 +18,5 @@ mysql-connector-python==8.3.0
 python-dotenv==0.21.1
 pandas==2.2.2
 openpyxl
+# llama_cpp_python(m1 install)
+# CMAKE_ARGS="-DCMAKE_OSX_ARCHITECTURES=arm64" pip install --upgrade --verbose --force-reinstall --no-cache-dir llama-cpp-python==0.2.13

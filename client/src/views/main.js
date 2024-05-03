@@ -317,6 +317,10 @@ export default function MainView() {
         });
     }
 
+    const msg_format = () =>{
+        
+    }
+
 
     useEffect(()=>{
         logincheck()

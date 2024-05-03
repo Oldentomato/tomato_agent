@@ -6,18 +6,15 @@ class MyStreamingCallback(BaseCallbackHandler):
         self.final_answer = False
         self.g = g
 
-    async def on_llm_new_token(self, token: str, **kwargs) -> None:
+
+    def on_agent_action(self, action, run_id, parent_run_id):
+        self.g.send(f"on_agent_action {action}")
+
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
         self.content += token
         self.g.send(token)
-        if "." in token:
-            self.content += '\n'
-            self.g.send('\n')
-        if "final_answer" in self.content:
-            self.final_answer = True 
-            self.content = ""
 
-    def on_llm_end(self, response, **kwargs) -> None:
-        self.g.close()
+
 
 class MyAgentCallback(BaseCallbackHandler):
     def __init__(self, g):
@@ -25,18 +22,8 @@ class MyAgentCallback(BaseCallbackHandler):
         self.final_answer = False
         self.g = g
 
-    def on_agent_action(self, action):
-        self.g.send(f"on_agent_action {action}")
+    def on_agent_action(self, action, **kwargs):
+        self.g.send(f"**{action.tool_input}이라는 입력으로 {action.tool}도구를 사용합니다.**\n")
 
-    async def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.content += token
-        # self.g.send(token)
-        # if "." in token:
-        #     self.g.send('\n')
-        if "Final Answer" in self.content:
-            self.final_answer = True 
-            self.g.send(token)
-            # self.content = ""
-
-    def on_llm_end(self, response, **kwargs) -> None:
+    def on_chain_end(self,outputs,**kwargs):
         self.g.close()

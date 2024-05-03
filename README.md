@@ -81,6 +81,7 @@ docker compose up -d
 - 프론트부분에서 fetch요청함수를 모듈화하여 반복정의를 최소화할것  
 - 프론트부분에서 sql요청(delete) promise객체로 처리하기
 - chat_memory를 elasticsstore에 호환되도록 수정할 것
+- 대화내역을 다시 불러올때 도구사용내용이 누락됨
 
 ## License
 MIT

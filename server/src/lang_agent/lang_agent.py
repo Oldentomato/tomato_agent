@@ -1,29 +1,21 @@
 import re
 from typing import List, Union
 
-from langchain.chat_models import ChatOpenAI
-from langchain.agents import (
-    AgentExecutor,
-    AgentOutputParser,
-    LLMSingleActionAgent,
-    Tool
-)
-from .tools import get_tools
-from util import get_openai_model
-from langchain_community.tools.convert_to_openai import format_tool_to_openai_function
+from langchain.agents import AgentExecutor
+from .tools_temp import get_tools
+from util import get_openai_model,MyAgentCallback
 from langchain.memory.chat_message_histories.in_memory import ChatMessageHistory
-from langchain.agents.format_scratchpad import format_to_openai_function_messages
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.memory import ConversationBufferMemory
-from langchain.prompts import BaseChatPromptTemplate
+from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.prompts import MessagesPlaceholder
 from langchain.tools.render import format_tool_to_openai_function
 from langchain.agents.format_scratchpad import format_to_openai_functions
-from langchain.schema import AgentAction, AgentFinish, HumanMessage, messages_to_dict, messages_from_dict
-from util import MyAgentCallback
+from langchain.schema import messages_to_dict, messages_from_dict
 import json
 
+#velog 내용 보고 새로운 환경에서 테스트 해볼것
 
 # 구조화까지 끝나면 우선 html저장기능을 먼저 만들고 그 다음에 코드조각 저장기능을 만들어 놓자
 # 만일 tool을 잘 찾지 못한다면 종이에 쓴 기법을 한번 활용해보자 (아직까지는 얘가 tool을 잘 고름)
@@ -44,39 +36,54 @@ class LangAgent:
         self.callback = MyAgentCallback(g)
 
         template = """
-            You are a kind recommender assistant. And retrieve informations with available tools.
-            Given User {input}, figure out the user's intentions and decide which tool to use. Try to use available tools
+            You are a kind assistant. And retrieve informations with available tools.
+            Given User {input}, figure out the user's intentions and decide which tool to use. 
+            Try to use available tools.
+            If it's a simple conversation, don't use tools.
             For successful retrieval, I will give some examples
 
             - Weather information
             If you think user need weather information, you can use 'get_current_temperature' function. If you don't have user information, define user is in Seoul, Korea and use the function.
 
-            - More informations
-            If user wants MORE informations, use 'get_googleapi_search' with extracted movie, director or cast name.
+            - Google Search
+            If it's information you don't know, use '__get_googlesearch_tool' and summarize.
 
             When finished, go to Final Step.
 
             - Final Step
             Use what you retrieved.
-            When you recommend movies, you should answer based on this {recommend_format} structure.
+            When you answer for weather informantion, you should answer based on this {weather_format} structure.
+            When you answer for google search informantion, you should answer based on this {search_format} structure.
         """
-        recommend_format = """
-            - <Short greetings>
-            - <movie name> - <plot>
-            - <movie name> - <plot>
-            - <movie name> - <plot>
-            - <Explanation about your recommendation in more than two sentences>
+        self.weather_format = """
+            Please explain the results in detail by organizing them by time.
+            - <Answer>
+            - <Results>
             - <Greetings>
             ***ANSWER IN KOREAN!!***
         """
+        self.search_format = """
+            - <Answer>
+            ***ASWER IN KOREAN!!***
+        """
 
-        llm = get_openai_model().bind(functions=functions)
+        
         functions = [
             format_tool_to_openai_function(f) for f in get_tools()
         ]
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", template),
+            MessagesPlaceholder(variable_name='chat_history'),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name='agent_scratchpad')
+        ])
+
+        llm = get_openai_model(g).bind(functions=functions)
+
         self.retrieval_chain = RunnablePassthrough.assign(
             agent_scratchpad = lambda x: format_to_openai_functions(x["intermediate_steps"])
-        ) | prompt1 | model | OpenAIFunctionsAgentOutputParser()
+        ) | prompt | llm | OpenAIFunctionsAgentOutputParser()
 
         # prompt = CustomPromptTemplate(
         #     template=_template,
@@ -88,12 +95,7 @@ class LangAgent:
 
 
         # prompt = PromptTemplate(input_variables=['input'], template=template)
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", template),
-            MessagesPlaceholder(variable_name='chat_history'),
-            ("user", "{input}"),
-            MessagesPlaceholder(variable_name='agent_scratchpad')
-        ])
+
 
         # LLM chain consisting of the LLM and a prompt
         
@@ -130,16 +132,11 @@ class LangAgent:
             4. AgentAction과 Observation을 AgentFinish가 등장할 때까지 다시 에이전트에 전달하는 일을 반복합니다.
         """
         if is_new:
-            memory = ConversationBufferMemory(memory_key="chat_history")
+            memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True, input_key='input')
         else:
             retrieved_chat_history = self._get_jsondata(history_url)
-            memory = ConversationBufferMemory(chat_memory=retrieved_chat_history, memory_key="chat_history")
-        # if history != None:
-        #     retrieved_chat_history = ChatMessageHistory(messages=history)
-        #     # memory = ConversationBufferMemory(memory_key="chat_history")
-        #     memory = ConversationBufferMemory(chat_memory=retrieved_chat_history, memory_key="chat_history")
-        # else:
-        #     memory = ConversationBufferMemory(memory_key="chat_history")
+            memory = ConversationBufferMemory(chat_memory=retrieved_chat_history, memory_key="chat_history", return_messages=True, input_key='input')
+
 
         def _handle_error(error) -> str:
             return str(error)[:50]
@@ -147,10 +144,14 @@ class LangAgent:
         agent_executor = AgentExecutor(
             agent=self.retrieval_chain, tools=get_tools(), verbose=True,
             handle_parsing_errors=_handle_error,
-            memory=memory
+            memory=memory,
+            callbacks = [self.callback]
         )   
 
-        agent_executor.run({"input":query}, callbacks=[self.callback])
+        agent_executor.invoke({"input":query, 
+                                "weather_format":self.weather_format,
+                                "search_format": self.search_format}
+        )
 
         # if(history == ""):
             #채팅이 새로운 시작일 경우 다른거는 추가할 필요없이
