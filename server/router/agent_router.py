@@ -40,9 +40,17 @@ async def agent(query: str = Form(...), history_url: str = Form(...), is_new: bo
 
 @agent_route.post("/deletechat")
 async def delete_chat(chat_path: str = Form(...)):
-    if os.path.isfile(chat_path):
+    try:
         os.remove(chat_path)
+    except FileNotFoundError as e:
         return {'success': True}
+    except Exception as e:
+        return {'success': False, 'message': e}
     else:
-        return {'success': False, 'message': 'item is not here'}
+        return {'success': True}
+    # if os.path.isfile(chat_path):
+    #     os.remove(chat_path)
+    #     return {'success': True}
+    # else:
+    #     return {'success': False, 'message': 'item is not here'}
     

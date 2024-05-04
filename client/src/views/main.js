@@ -9,19 +9,20 @@ import { SendOutlined } from '@ant-design/icons';
 import gptImgLogo from '../assets/bot.jpg'
 import {useNavigate} from "react-router-dom"
 import { LogoutOutlined } from '@ant-design/icons';
+import Code from "../components/code";
 
 const {Header} = Layout;
 
-const req_option = [
-    {
-        label: "chat",
-        value: "chat",
-    },
-    {
-        label: "agent",
-        value: "agent",
-    }
-]
+// const req_option = [
+//     {
+//         label: "chat",
+//         value: "chat",
+//     },
+//     {
+//         label: "agent",
+//         value: "agent",
+//     }
+// ]
 
 export default function MainView() {
     //debug
@@ -122,30 +123,34 @@ export default function MainView() {
         }
     }
     //fetch요청보내는 부분 중복이 많음 하나의 함수로 만들어서 사용하도록 전체적으로 수정이 필요함
-    const new_chat_sql = () =>{
+    const new_chat_sql = async() =>{
         const formData = new FormData();
 
         const url = new URL("/db/createchat", FETCH_URL);
         formData.append("token", token)
         formData.append("chat_num", chatRooms.length)
-        fetch(url, {
+        await fetch(url, {
             method: 'POST',
             body: formData
         }).then(response=>{
             if (!response.ok) {
-                throw new Error('Network was not ok');
+                console.error("Network Error")
+                return false
             }
             return response.json(); // 응답 본문을 JSON으로 파싱
         }).then(data=>{
-            if(data.success){
-                console.log("its ok")
-            }
-            else{
-                console.log(data)
-                throw new Error('response was not ok');
-            }
+            return new Promise(async (resolve, reject) => {
+                if (data.success) {
+                    return resolve()
+                }
+                else{
+                    return reject()
+                }
+                
+            })
         }).catch(error => {
             console.error('There was a problem with your fetch operation:', error);
+            return false
         });
     }
 
@@ -156,63 +161,64 @@ export default function MainView() {
             {text: input, isBot: false}
         ])
 
-        let response = null
         let url = null
         const formData  = new FormData();
 
-        if(req === "chat"){
-            url = new URL("/llm/chat", FETCH_URL);
-        }else if(req === "agent"){
-            url = new URL("/agent/chat", FETCH_URL);
-            if(history_url === ""){
-                setChatRooms((prev)=>[
-                    ...prev,
-                    {'id': token+chatRooms.length, 'name': 'Room_'+token+chatRooms.length, 'path': './store/'+token+chatRooms.length+'.json'}
-                ])
-                formData.append("history_url", './store/'+token+chatRooms.length+'.json')
-                formData.append("is_new", true)
-                new_chat_sql()
-                sethistory_url('./store/'+token+chatRooms.length+'.json')
-            }
-            else{
-                formData.append("history_url", history_url)
-                formData.append("is_new", false)
-            }
+        url = new URL("/agent/chat", FETCH_URL);
+        if(history_url === ""){
+            setChatRooms((prev)=>[
+                ...prev,
+                {'id': token+chatRooms.length, 'name': 'Room_'+token+chatRooms.length, 'path': './store/'+token+chatRooms.length+'.json'}
+            ])
+            formData.append("history_url", './store/'+token+chatRooms.length+'.json')
+            formData.append("is_new", true)
+
+            sethistory_url('./store/'+token+chatRooms.length+'.json')
         }
+        else{
+            formData.append("history_url", history_url)
+            formData.append("is_new", false)
+        }
+
         formData.append("query", input)
         
         setInput("")
-        response = await fetch(url,{
+        await fetch(url,{
             method: 'POST',
             body: formData
+        }).then(async(response)=>{
+            new_chat_sql().then(async()=>{
+                if (!response.body) throw new Error("No response body");
+                const reader = response.body.getReader();
+                let temp_str = ""
+    
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const text = new TextDecoder("utf-8").decode(value);
+                    temp_str += text
+                    setAnswer((prevText) => prevText + text);
+                }
+                setAnswer("")
+                setMessages((prevMessages)=>[
+                    ...prevMessages,
+                    {text: temp_str, isBot: true}
+                ])
+                setIsLoading(false)
+            }).catch(()=>{
+                throw new Error("create chat sql error")
+            })
         })
-
-        if (!response.body) throw new Error("No response body");
-        const reader = response.body.getReader();
-        let temp_str = ""
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const text = new TextDecoder("utf-8").decode(value);
-            temp_str += text
-            setAnswer((prevText) => prevText + text);
-        }
-        setAnswer("")
-        setMessages((prevMessages)=>[
-            ...prevMessages,
-            {text: temp_str, isBot: true}
-        ])
-        setIsLoading(false)
+        
         
     }
 
-    const deletechat_sql = (chat_id) =>{//promise객체로 변경해야함
+    const deletechat_sql = async(chat_id) =>{//promise객체로 변경해야함
         const formData = new FormData();
 
         const url = new URL("/db/deletechat", FETCH_URL);
         formData.append("chat_id", chat_id)
-        fetch(url, {
+        await fetch(url, {
             method: 'POST',
             body: formData
         }).then(response=>{
@@ -221,16 +227,19 @@ export default function MainView() {
             }
             return response.json(); // 응답 본문을 JSON으로 파싱
         }).then(data=>{
-            if(data.success){
-                console.log("its ok")
-            }
-            else{
-                console.log(data)
-                throw new Error('response was not ok');
-            }
+            return new Promise(async (resolve, reject) => {
+                if (data.success) {
+                    return resolve()
+                }
+                else{
+                    return reject()
+                }
+                
+            })
         }).catch(error => {
             console.error('There was a problem with your fetch operation:', error);
         });
+
     }
 
     const deletechat = async(item) =>{
@@ -238,7 +247,7 @@ export default function MainView() {
         url = new URL("/agent/deletechat", FETCH_URL);
         const formData  = new FormData();
         formData.append("chat_path", item.path);
-        fetch(url,{
+        await fetch(url,{
             method: 'POST',
             body: formData
         }).then(response=>{
@@ -246,16 +255,19 @@ export default function MainView() {
                 throw new Error('Network response was not ok');
             }
             return response.json(); // 응답 본문을 JSON으로 파싱
-        }).then(data=>{
+        }).then(async(data)=>{
             if(data.success){
-                deletechat_sql(item.id)
-                setChatRooms(prevArray =>
-                    prevArray.filter(arr => arr.id !== item.id))
-                sethistory_url("")
-                setMessages([{
-                    text: "say something!",
-                    isBot: true
-                }])
+                deletechat_sql(item.id).then(()=>{
+                    setChatRooms(prevArray =>
+                        prevArray.filter(arr => arr.id !== item.id))
+                    sethistory_url("")
+                    setMessages([{
+                        text: "say something!",
+                        isBot: true
+                    }])
+                }).catch(()=>{
+                    throw new Error('sql response error');
+                })
             }
             
         }).catch(error => {
@@ -345,7 +357,7 @@ export default function MainView() {
                 style={{
                     position:'absolute',
                     marginTop: '5%',
-                    width: '30%',
+                    width: '25%',
                     height: '70%',
                     overflow: 'auto',
                     padding: '0 16px',
@@ -404,11 +416,12 @@ export default function MainView() {
                                 <p className="txt" style={{whiteSpace:"pre-line", textAlign:'left'}} key={i}>
                                     {message.text.includes("```") ? (
                                         <div>
-                                        {message.text.split("```").map((part, index) =>
+                                        {
+                                        message.text.split("```").map((part, index) =>
                                             index % 2 === 0 ? (
                                             <span key={index}>{part}</span>
                                             ) : (
-                                            <code style={{backgroundColor:'rgba(0, 0, 0, 0.5)', margin:'10px', color:'rgb(120,120,120)'}} key={index}>{part}</code>
+                                                <Code code={part} language={part.split("\n")[0]} key={index} />
                                             )
                                         )}
                                         </div>
@@ -435,8 +448,8 @@ export default function MainView() {
 
 
             <div className="chatFooter">
-                <Radio.Group optionType="button" buttonStyle="solid" options={req_option} onChange={onRequestChange} value={req} />
-                <br />
+                {/* <Radio.Group optionType="button" buttonStyle="solid" options={req_option} onChange={onRequestChange} value={req} />
+                <br /> */}
                 <div className="inp">
                     <input type="text" placeholder="Send a message" onKeyUp={handleOnKeyPress} value={input} onChange={(e)=>{setInput(e.target.value)}}/><Button className="send" type="primary" onClick={handleSend} loading={isLoading} icon={<SendOutlined />}/>
                 </div>

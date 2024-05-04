@@ -79,9 +79,9 @@ docker compose up -d
     - [GPT Style CSS](https://www.youtube.com/watch?v=EzkWAviyYgg)
 ## to-do  
 - 프론트부분에서 fetch요청함수를 모듈화하여 반복정의를 최소화할것  
-- 프론트부분에서 sql요청(delete) promise객체로 처리하기
-- chat_memory를 elasticsstore에 호환되도록 수정할 것
 - 대화내역을 다시 불러올때 도구사용내용이 누락됨
+- 실시간 교통상황 도구 개발
+- reAct 계획구상
 
 ## License
 MIT
