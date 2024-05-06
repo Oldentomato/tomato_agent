@@ -55,9 +55,9 @@ soylemma            0.2.0
 
 ## Functions  
 ### Use Agent
-- search to internet  
+- search real-time weather info  
 ![image_1](https://github.com/Oldentomato/tomato_agent/blob/main/assets/search_weather.gif)  
-- search real-time weather info 
+- search to internet  
 ![image_1](https://github.com/Oldentomato/tomato_agent/blob/main/assets/search_google.gif)  
 - chat memory  
 ![image_1](https://github.com/Oldentomato/tomato_agent/blob/main/assets/memory.gif)  
