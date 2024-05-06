@@ -2,7 +2,9 @@
     <img src="./assets/logo.jpeg" width=30% height=30% />
 </p>  
 
-## TOMATO_AGENT (with Langchain Agent)     
+## TOMATO_AGENT (with Langchain Agent)   
+> This project is still in the development stage.  
+
 This is a project where you can command chatgpt to act.  
 You can use the "agent" in "langchain" to carry out the commands you want.  
 I used mysql database to store user information and chat history.  
@@ -10,6 +12,13 @@ In addition to openai's model, you can also utilize Huggingface's local model.
 The front end is made up of react and the back end is fastapi, and the docker file is also created so that all configurations can be built at once.  
 ## Libraries  
 ### python  
+openai==1.6.1
+fastapi==0.109.0
+langchain==0.0.353
+konlpy==0.6.0
+regex==2023.12.25
+rank-bm25==0.2.2
+
 ```bash
 Package             Version
 ------------------- ----------
@@ -24,6 +33,18 @@ openai              1.6.1
 rank-bm25           0.2.2
 regex               2023.12.25
 soylemma            0.2.0
+bs4
+langchain[docarray]
+tiktoken            0.5.1
+google-api-python-client    2.100.0
+scikit-learn
+uvicorn             0.27.0.post1
+python-multipart    0.0.6
+SQLAlchemy          2.0.24
+mysql-connector-python  8.3.0
+python-dotenv       0.21.1
+pandas              2.2.2
+openpyxl
 ```
 ### node  
 ```json
@@ -36,6 +57,7 @@ soylemma            0.2.0
 "react-dom": "^18.2.0",
 "react-scripts": "5.0.1",
 "web-vitals": "^2.1.4"
+"prismjs": "^1.29.0",
 ```
 ## Enviorment  
 ### Client 
