@@ -12,13 +12,6 @@ In addition to openai's model, you can also utilize Huggingface's local model.
 The front end is made up of react and the back end is fastapi, and the docker file is also created so that all configurations can be built at once.  
 ## Libraries  
 ### python  
-openai==1.6.1
-fastapi==0.109.0
-langchain==0.0.353
-konlpy==0.6.0
-regex==2023.12.25
-rank-bm25==0.2.2
-
 ```bash
 Package             Version
 ------------------- ----------
