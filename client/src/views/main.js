@@ -25,7 +25,6 @@ const {Header} = Layout;
 // ]
 
 export default function MainView() {
-    //debug
     const [chatRooms, setChatRooms] = useState([]);
     const [history_url, sethistory_url] = useState("");
     const navigate = useNavigate();
@@ -39,14 +38,10 @@ export default function MainView() {
     }])
     const {defualtAlgorithm, darkAlgorithm} = theme;
     const [is_loading, set_is_loading] = useState(false);
-    const [req, setreq] = useState('chat');
     const token = localStorage.getItem('token')
 
     const FETCH_URL = "http://localhost:8000"
 
-    const onRequestChange = ({ target: { value } }) => {
-        setreq(value);
-    };
 
     const handleOnKeyPress = (e) => {
         if (e.key === 'Enter' && !isLoading) {
@@ -129,6 +124,7 @@ export default function MainView() {
         const url = new URL("/db/createchat", FETCH_URL);
         formData.append("token", token)
         formData.append("chat_num", chatRooms.length)
+        formData.append("chat_name", input)
         await fetch(url, {
             method: 'POST',
             body: formData
@@ -156,6 +152,25 @@ export default function MainView() {
 
 
     const handleSend = async(e) =>{
+        const get_res_msg = async(response) =>{
+            if (!response.body) throw new Error("No response body");
+            const reader = response.body.getReader();
+            let temp_str = ""
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const text = new TextDecoder("utf-8").decode(value);
+                temp_str += text
+                setAnswer((prevText) => prevText + text);
+            }
+            setAnswer("")
+            setMessages((prevMessages)=>[
+                ...prevMessages,
+                {text: temp_str, isBot: true}
+            ])
+            setIsLoading(false)
+        }
         setMessages((prevMessages)=>[
             ...prevMessages,
             {text: input, isBot: false}
@@ -168,7 +183,7 @@ export default function MainView() {
         if(history_url === ""){
             setChatRooms((prev)=>[
                 ...prev,
-                {'id': token+chatRooms.length, 'name': 'Room_'+token+chatRooms.length, 'path': './store/'+token+chatRooms.length+'.json'}
+                {'id': token+chatRooms.length, 'name': input, 'path': './store/'+token+chatRooms.length+'.json'}
             ])
             formData.append("history_url", './store/'+token+chatRooms.length+'.json')
             formData.append("is_new", true)
@@ -187,27 +202,16 @@ export default function MainView() {
             method: 'POST',
             body: formData
         }).then(async(response)=>{
-            new_chat_sql().then(async()=>{
-                if (!response.body) throw new Error("No response body");
-                const reader = response.body.getReader();
-                let temp_str = ""
-    
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const text = new TextDecoder("utf-8").decode(value);
-                    temp_str += text
-                    setAnswer((prevText) => prevText + text);
-                }
-                setAnswer("")
-                setMessages((prevMessages)=>[
-                    ...prevMessages,
-                    {text: temp_str, isBot: true}
-                ])
-                setIsLoading(false)
-            }).catch(()=>{
-                throw new Error("create chat sql error")
-            })
+            if(history_url === ""){
+                new_chat_sql().then(async()=>{
+                    get_res_msg(response)
+                }).catch(()=>{
+                    throw new Error("create chat sql error")
+                })
+            }
+            else{
+                get_res_msg(response)
+            }
         })
         
         
@@ -291,7 +295,7 @@ export default function MainView() {
         }).then(data=>{
             if(data.success){
                 const result_data = data.item.map(item=>{
-                    return {'id': item.chat_id, 'name': 'Room_'+item.chat_id, 'path': item.chat_path}
+                    return {'id': item.chat_id, 'name': item.chat_name, 'path': item.chat_path}
                 })
                 setChatRooms(result_data)
             }
@@ -388,7 +392,7 @@ export default function MainView() {
                             <List.Item.Meta
                                 // avatar={<Avatar src={item.picture.large} />}
                                 title={item.name}
-                                description={'날짜로 교체할것'}
+                                description={'datetime'}
                             />
                             <Button onClick={()=>{
                                 get_chatmsgs(item)

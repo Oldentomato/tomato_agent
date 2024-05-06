@@ -36,6 +36,7 @@ class Chats(Base):
 
     chat_id = Column(String, primary_key=True)
     user_name = Column(String, ForeignKey('users.user_name'))
+    chat_name = Column(String)
     chat_path = Column(String)
 
     user = relationship("User", back_populates="chats")
@@ -92,12 +93,12 @@ async def get_chats(token: str=Form(...)):
         return {"success": True, "item":chat_item}
 
 @sqlroute.post("/createchat")
-async def create_chat(token: str=Form(...), chat_num: str=Form(...)):
+async def create_chat(token: str=Form(...), chat_num: str=Form(...), chat_name: str=Form(...)):
     item = db.query(User).filter(User.token == token).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     else:
-        add_chat = Chats(chat_id=token+chat_num, user_name=item.user_name, chat_path=f"./store/{token+chat_num}.json")
+        add_chat = Chats(chat_id=token+chat_num, chat_name=chat_name, user_name=item.user_name, chat_path=f"./store/{token+chat_num}.json")
         db.add(add_chat)
         db.commit()
         return {"success": True}

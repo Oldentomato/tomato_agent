@@ -51,14 +51,16 @@ soylemma            0.2.0
 - customize your db structure like ./example_db/init.sql
 - set environment variables (dotenv)
 - run "docker compose up -d"  
-https://console.cloud.google.com/apis/dashboard?pli=1&project=shining-granite-299216
+
 
 ## Functions  
-### Chat GPT
 ### Use Agent
-- save & search html
-- search to internet
-- search real-time weather info, and news
+- search to internet  
+![image_1](https://github.com/Oldentomato/tomato_agent/blob/main/assets/search_weather.gif)  
+- search real-time weather info 
+![image_1](https://github.com/Oldentomato/tomato_agent/blob/main/assets/search_google.gif)  
+- chat memory  
+![image_1](https://github.com/Oldentomato/tomato_agent/blob/main/assets/memory.gif)  
 ### Use Mixtral Local Model
 
 
@@ -82,6 +84,7 @@ docker compose up -d
 - 대화내역을 다시 불러올때 도구사용내용이 누락됨
 - 실시간 교통상황 도구 개발
 - reAct 계획구상
+- docker 빌드 테스트중
 
 ## License
 MIT
