@@ -97,6 +97,7 @@ docker compose up -d
 ## to-do  
 - 프론트부분에서 fetch요청함수를 모듈화하여 반복정의를 최소화할것  
 - 대화내역을 다시 불러올때 도구사용내용이 누락됨
+- front에서 shift+enter로 줄넘김 기능 추가
 - 실시간 교통상황 도구 개발
 - reAct 계획구상
 - docker 빌드 테스트중

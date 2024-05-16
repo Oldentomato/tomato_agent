@@ -8,6 +8,7 @@ import json
 from datetime import datetime
 import pandas as pd
 from util.getapi import get_google_search
+from ..retreiver import get_vectorstore
 
 load_dotenv(verbose=True)
 __excel_dir = os.getenv("REGION_EXCEL_DIR")
@@ -19,6 +20,17 @@ class Weather_Input(BaseModel):
 
 class GoogleSearch_Input(BaseModel):
     keyword: str = Field(..., description="search for keyword")
+
+class Search_Code(BaseModel):
+    query: str = Field(..., description="search for keyword")
+
+@tool(args_schema=Search_Code)
+def __get_codesearch_tool(query: str) -> str:
+    """search written program code"""
+    vector = get_vectorstore()
+    result = vector.retrieval(query)
+    return result #수정필요
+
 
 @tool(args_schema=GoogleSearch_Input)
 def __get_googlesearch_tool(keyword: str) -> str:
@@ -172,6 +184,6 @@ def __get_weather_tool(region: str) -> str:
     # print(template)
     return template
 
-__tools = [__get_weather_tool,__get_googlesearch_tool]
+__tools = [__get_weather_tool,__get_googlesearch_tool, __get_codesearch_tool]
 def get_tools():
     return __tools

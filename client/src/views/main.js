@@ -13,18 +13,21 @@ import Code from "../components/code";
 
 const {Header} = Layout;
 
-// const req_option = [
-//     {
-//         label: "chat",
-//         value: "chat",
-//     },
-//     {
-//         label: "agent",
-//         value: "agent",
-//     }
-// ]
+const req_option = [
+    {
+        label: "chat",
+        value: "chat",
+    },
+    {
+        label: "save_code",
+        value: "savecode",
+    }
+]
 
 export default function MainView() {
+    const [req, set_req] = useState("savecode");
+    const [process_id, set_process] = useState("");
+    const [confirm, set_confirm] = useState("yes");
     const [chatRooms, setChatRooms] = useState([]);
     const [history_url, sethistory_url] = useState("");
     const navigate = useNavigate();
@@ -34,7 +37,8 @@ export default function MainView() {
     const [isLoading, setIsLoading] = useState(false);
     const [messages, setMessages] = useState([{
         text: "say something!",
-        isBot: true
+        isBot: true,
+        iscomponent: false
     }])
     const {defualtAlgorithm, darkAlgorithm} = theme;
     const [is_loading, set_is_loading] = useState(false);
@@ -42,6 +46,10 @@ export default function MainView() {
 
     const FETCH_URL = "http://localhost:8000"
 
+
+    const onRequestChange = ({ target: { value } }) =>{
+        set_req(value)
+    }
 
     const handleOnKeyPress = (e) => {
         if (e.key === 'Enter' && !isLoading) {
@@ -150,8 +158,14 @@ export default function MainView() {
         });
     }
 
+    const extractContent = (str) => {
+        const regex = /```(.*?)```/;
+        const match = str.match(regex);
+        return match ? match[1] : '';
+    };
 
-    const handleSend = async(e) =>{
+
+    const handleSend = async() =>{
         const get_res_msg = async(response) =>{
             if (!response.body) throw new Error("No response body");
             const reader = response.body.getReader();
@@ -167,53 +181,98 @@ export default function MainView() {
             setAnswer("")
             setMessages((prevMessages)=>[
                 ...prevMessages,
-                {text: temp_str, isBot: true}
+                {text: temp_str, isBot: true, iscomponent: false}
             ])
             setIsLoading(false)
         }
         setMessages((prevMessages)=>[
             ...prevMessages,
-            {text: input, isBot: false}
+            {text: input, isBot: false, iscomponent: false}
         ])
 
         let url = null
         const formData  = new FormData();
 
-        url = new URL("/agent/chat", FETCH_URL);
-        if(history_url === ""){
-            setChatRooms((prev)=>[
-                ...prev,
-                {'id': token+chatRooms.length, 'name': input, 'path': './store/'+token+chatRooms.length+'.json'}
-            ])
-            formData.append("history_url", './store/'+token+chatRooms.length+'.json')
-            formData.append("is_new", true)
+        if(req === "savecode"){
+            url = new URL("/agent/process-savecode", FETCH_URL);
+            
+            formData.append("code",input) 
+            
+            if(process_id !== ""){
+                if(confirm === "yes"){ //여기도 input이 아니라 버튼value로 수정할것
+                    formData.append("confirm", true)
+                    formData.append("task_id", process_id)
+                }
+                else if(confirm === "no") {
+                    formData.append("confirm", false)
+                }
+            }
+            await fetch(url,{
+                method: 'POST',
+                body: formData
+            }).then(response=>{
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json(); // 응답 본문을 JSON으로 파싱
+            }).then(async(data)=>{
+                if(data.success){
+                    if(data.mode === "summary"){
+                        set_process(data.task_id)
+                        setMessages((prevMessages)=>[
+                            ...prevMessages,
+                            {text: "<"+data.summary+"> \n 해당 내용대로 저장하시겠습니까?", isBot: true, iscomponent: true}
+                        ])
+                    }
+                    else if(data.mode === "save"){
+                        window.alert("저장되었습니다.")
+                        set_process("")
+                        set_is_loading(false)
+                    }
 
-            sethistory_url('./store/'+token+chatRooms.length+'.json')
+                }
+                else{
+                    window.alert(data.msg)
+                }
+                
+            })
         }
-        else{
-            formData.append("history_url", history_url)
-            formData.append("is_new", false)
-        }
-
-        formData.append("query", input)
-        
-        setInput("")
-        await fetch(url,{
-            method: 'POST',
-            body: formData
-        }).then(async(response)=>{
+        else if (req === "chat"){
+            url = new URL("/agent/chat", FETCH_URL);
             if(history_url === ""){
-                new_chat_sql().then(async()=>{
-                    get_res_msg(response)
-                }).catch(()=>{
-                    throw new Error("create chat sql error")
-                })
+                setChatRooms((prev)=>[
+                    ...prev,
+                    {'id': token+chatRooms.length, 'name': input, 'path': './store/'+token+chatRooms.length+'.json'}
+                ])
+                formData.append("history_url", './store/'+token+chatRooms.length+'.json')
+                formData.append("is_new", true)
+    
+                sethistory_url('./store/'+token+chatRooms.length+'.json')
             }
             else{
-                get_res_msg(response)
+                formData.append("history_url", history_url)
+                formData.append("is_new", false)
             }
-        })
-        
+    
+            formData.append("query", input)
+            
+            setInput("")
+            await fetch(url,{
+                method: 'POST',
+                body: formData
+            }).then(async(response)=>{
+                if(history_url === ""){
+                    new_chat_sql().then(async()=>{
+                        get_res_msg(response)
+                    }).catch(()=>{
+                        throw new Error("create chat sql error")
+                    })
+                }
+                else{
+                    get_res_msg(response)
+                }
+            })
+        }
         
     }
 
@@ -267,7 +326,8 @@ export default function MainView() {
                     sethistory_url("")
                     setMessages([{
                         text: "say something!",
-                        isBot: true
+                        isBot: true,
+                        iscomponent: false
                     }])
                 }).catch(()=>{
                     throw new Error('sql response error');
@@ -335,6 +395,11 @@ export default function MainView() {
 
     const msg_format = () =>{
         
+    }
+
+    const on_confirm_btn = (value) =>{
+        set_confirm(value)
+        handleSend()
     }
 
 
@@ -416,8 +481,17 @@ export default function MainView() {
                     {messages.map((message, i)=>
                         <Item key={i}>
                             <div className={message.isBot?"chat bot":"chat"}>
-                                {message.isBot ? <img className="chatImg" src={gptImgLogo}/> : <p>You</p> }
-                                <p className="txt" style={{whiteSpace:"pre-line", textAlign:'left'}} key={i}>
+                                {message.isBot ? <img className="chatImg" src={gptImgLogo}/> : <p>You </p> }
+                                {message.iscomponent ? 
+                                    <div>
+                                        <p className="txt" style={{whiteSpace:"pre-line", textAlign:'left'}} key={i}>
+                                            {message.text}
+                                        </p>
+                                        <Button type="text" onClick={() => on_confirm_btn('yes')} style={{ color: 'white' }}>네</Button>
+                                        <Button type="text" onClick={() => on_confirm_btn("no")} style={{ color: 'white' }}>아니오</Button>
+                                    </div> 
+                                :
+                                    <p className="txt" style={{whiteSpace:"pre-line", textAlign:'left'}} key={i}>
                                     {message.text.includes("```") ? (
                                         <div>
                                         {
@@ -433,6 +507,8 @@ export default function MainView() {
                                         message.text
                                     )}
                                 </p>
+                                }
+
                             </div>
                         </Item>)}
                 </AnimatePresence>
@@ -452,8 +528,8 @@ export default function MainView() {
 
 
             <div className="chatFooter">
-                {/* <Radio.Group optionType="button" buttonStyle="solid" options={req_option} onChange={onRequestChange} value={req} />
-                <br /> */}
+                <Radio.Group optionType="button" buttonStyle="solid" options={req_option} onChange={onRequestChange} value={req} />
+                <br />
                 <div className="inp">
                     <input type="text" placeholder="Send a message" onKeyUp={handleOnKeyPress} value={input} onChange={(e)=>{setInput(e.target.value)}}/><Button className="send" type="primary" onClick={handleSend} loading={isLoading} icon={<SendOutlined />}/>
                 </div>
